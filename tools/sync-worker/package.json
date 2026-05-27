@@ -1,0 +1,6 @@
+{
+  "name": "@postern/sync-worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Optional Cloudflare Worker for push relay."
+}

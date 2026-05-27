@@ -1,0 +1,8 @@
+{
+  "name": "@postern/utils",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MIME, address parsing, dates, and sanitizers.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}

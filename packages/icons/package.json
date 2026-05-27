@@ -1,0 +1,8 @@
+{
+  "name": "@postern/icons",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SVG icon system.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}

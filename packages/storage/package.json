@@ -1,0 +1,8 @@
+{
+  "name": "@postern/storage",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Drizzle schema, libsql, and FTS5 search.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}

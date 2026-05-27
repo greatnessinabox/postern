@@ -1,0 +1,23 @@
+{
+  "name": "postern",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source correspondence client.",
+  "license": "AGPL-3.0",
+  "engines": {
+    "pnpm": ">=10.0.0",
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "~5.9.0"
+  }
+}
