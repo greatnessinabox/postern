@@ -1,0 +1,9 @@
+{
+  "extends": "@postern/tsconfig/base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "jsx": "react-native",
+    "noEmit": true
+  },
+  "include": ["src/**/*", "app/**/*"]
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@postern/tsconfig/base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "WebWorker"],
+    "types": ["@cloudflare/workers-types"],
+    "noEmit": true
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/protocol" },
+    { "path": "./packages/storage" },
+    { "path": "./packages/crypto" },
+    { "path": "./packages/ai" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/icons" },
+    { "path": "./packages/utils" },
+    { "path": "./packages/eslint-config" },
+    { "path": "./apps/web" },
+    { "path": "./apps/desktop" },
+    { "path": "./apps/mobile" },
+    { "path": "./apps/docs" },
+    { "path": "./tools/sync-worker" }
+  ]
+}
