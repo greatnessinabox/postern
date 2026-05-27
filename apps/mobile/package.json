@@ -2,5 +2,8 @@
   "name": "@postern/mobile",
   "version": "0.0.0",
   "private": true,
-  "description": "Expo 53 mobile app."
+  "description": "Expo 53 mobile app.",
+  "devDependencies": {
+    "@postern/tsconfig": "workspace:^"
+  }
 }

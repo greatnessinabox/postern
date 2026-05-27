@@ -4,5 +4,8 @@
   "private": true,
   "description": "AI Function interface and provider adapters.",
   "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "@postern/tsconfig": "workspace:^"
+  }
 }

@@ -2,5 +2,8 @@
   "name": "@postern/desktop",
   "version": "0.0.0",
   "private": true,
-  "description": "Tauri 2.9 desktop wrapper."
+  "description": "Tauri 2.9 desktop wrapper.",
+  "devDependencies": {
+    "@postern/tsconfig": "workspace:^"
+  }
 }

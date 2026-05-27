@@ -4,5 +4,8 @@
   "private": true,
   "description": "Tailwind and shadcn primitives, bundled fonts and icons.",
   "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "@postern/tsconfig": "workspace:^"
+  }
 }
