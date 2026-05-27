@@ -58,6 +58,10 @@ importers:
         version: link:../../packages/tsconfig
 
   packages/ai:
+    dependencies:
+      '@postern/core':
+        specifier: workspace:^
+        version: link:../core
     devDependencies:
       '@postern/tsconfig':
         specifier: workspace:^
@@ -88,6 +92,10 @@ importers:
         version: link:../tsconfig
 
   packages/protocol:
+    dependencies:
+      '@postern/core':
+        specifier: workspace:^
+        version: link:../core
     devDependencies:
       '@postern/tsconfig':
         specifier: workspace:^

@@ -5,6 +5,12 @@
   "description": "AI Function interface and provider adapters.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@postern/core": "workspace:^"
+  },
   "devDependencies": {
     "@postern/tsconfig": "workspace:^"
   }
