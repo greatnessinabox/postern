@@ -1,0 +1,24 @@
+name: Question
+description: Something is unclear about Postern. For broader discussions, use GitHub Discussions instead.
+labels: ["question"]
+body:
+  - type: textarea
+    id: what-you-tried
+    attributes:
+      label: What you tried
+      description: What did you look at before opening this issue?
+      placeholder: "I read the README and docs/PRINCIPLES.md."
+    validations:
+      required: true
+  - type: textarea
+    id: what-unclear
+    attributes:
+      label: What's unclear
+      description: What did the docs not answer?
+    validations:
+      required: true
+  - type: input
+    id: docs-link
+    attributes:
+      label: Link to the doc you read
+      description: Paste a link if the doc is the source of confusion.

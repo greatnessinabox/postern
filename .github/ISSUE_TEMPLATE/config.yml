@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: General discussion
+    url: https://github.com/postern/postern/discussions
+    about: For ideas, requests for help, or anything not a bug or feature request.
+  - name: Security
+    url: https://github.com/postern/postern/security/advisories/new
+    about: Report a security vulnerability privately.

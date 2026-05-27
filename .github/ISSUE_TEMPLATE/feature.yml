@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose something Postern should do.
+labels: ["feature"]
+body:
+  - type: textarea
+    id: user-problem
+    attributes:
+      label: The user problem
+      description: What can someone not do today that they need to do?
+      placeholder: "I cannot find a thread when I only remember the attachment, not the subject or sender."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed solution
+      description: What should Postern do about it?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you think about and rule out?
+  - type: dropdown
+    id: rule-break
+    attributes:
+      label: Which rule-break does this fit
+      description: See docs/PRINCIPLES.md. If the answer is "introduces a new rule-break," explain in the proposed solution.
+      options:
+        - "1. Threads, not inboxes"
+        - "2. Spaces, not folders"
+        - "3. Continue, not Compose"
+        - "4. Reader and Ledger, not inbox bloat"
+        - "5. Command Bar is the client"
+        - "6. Boosts (per-sender lenses)"
+        - "7. Handles, not addresses"
+        - Introduces a new rule-break
+        - None directly, this is plumbing or polish
+    validations:
+      required: true

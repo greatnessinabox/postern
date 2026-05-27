@@ -1,0 +1,68 @@
+name: Bug
+description: Something is broken. Help me reproduce it.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did Postern do that was wrong?
+      placeholder: "Pinning a thread did not move it to the top of the canvas."
+    validations:
+      required: true
+  - type: textarea
+    id: what-expected
+    attributes:
+      label: What you expected
+      description: What should have happened?
+      placeholder: "The pinned thread should sit at the top, above all other active threads."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+      description: How can someone else trigger this on their machine?
+      placeholder: |
+        1. Open Postern with a connected Gmail account.
+        2. Right-click any thread tile and select Pin.
+        3. Note the tile's position has not changed.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Postern version
+      description: From the menu bar or the About screen.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - iOS
+        - Android
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Account provider involved
+      options:
+        - Gmail
+        - Microsoft 365 / Outlook.com
+        - Fastmail (JMAP)
+        - Generic IMAP / SMTP
+        - Multiple
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or logs
+      description: Drag images here. Logs help too.
