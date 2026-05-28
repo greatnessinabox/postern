@@ -9,6 +9,9 @@
 
 import type { Account, Message, PartId, Thread, ThreadId } from '@postern/core'
 
+export type { ParsedMessage, ParsedPart } from './mime.ts'
+export { parseRawMessage } from './mime.ts'
+
 export interface Folder {
   readonly name: string
   readonly path: string
