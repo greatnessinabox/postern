@@ -5,6 +5,13 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', '**/.turbo/**'],
+    // Integration tests need a real server; they run via `pnpm test:integration`.
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/.turbo/**',
+      '**/*.integration.test.ts',
+    ],
   },
 })

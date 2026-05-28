@@ -54,3 +54,27 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+
+  integration:
+    name: Integration (IMAP)
+    runs-on: ubuntu-latest
+    services:
+      greenmail:
+        image: greenmail/standalone:2.1.0
+        env:
+          GREENMAIL_OPTS: "-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled"
+        ports:
+          - 3143:3143
+          - 3025:3025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Wait for GreenMail IMAP
+        run: |
+          until nc -z localhost 3143; do sleep 1; done
+          sleep 2
+      - run: pnpm test:integration

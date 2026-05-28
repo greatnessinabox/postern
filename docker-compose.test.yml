@@ -1,0 +1,16 @@
+# GreenMail test mail server for IMAP integration tests.
+# Start: docker compose -f docker-compose.test.yml up -d
+# Then:  pnpm test:integration
+# Stop:  docker compose -f docker-compose.test.yml down
+#
+# Auth is disabled, so any login auto-creates the mailbox. Ephemeral:
+# no data persists across container restarts.
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.0
+    environment:
+      GREENMAIL_OPTS: "-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled"
+    ports:
+      - "3143:3143" # IMAP
+      - "3025:3025" # SMTP
+      - "3993:3993" # IMAPS

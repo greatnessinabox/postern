@@ -73,8 +73,19 @@ function buildClient(config: ImapConfig, password: string): ImapFlow {
   })
 }
 
+/**
+ * Resolves a passwordRef (an opaque keychain handle) to the secret itself.
+ * The adapter never stores secrets; packages/crypto injects this resolver.
+ */
+export type SecretResolver = (passwordRef: string) => Promise<string>
+
 export class ImapAdapter implements ProtocolAdapter {
   readonly providerKind = 'imap'
+  readonly #resolveSecret: SecretResolver
+
+  constructor(resolveSecret: SecretResolver) {
+    this.#resolveSecret = resolveSecret
+  }
 
   async connect(account: Account): Promise<Connection> {
     const config = account.imapConfig
@@ -82,11 +93,7 @@ export class ImapAdapter implements ProtocolAdapter {
       throw new Error(`Account ${account.id} has no imapConfig; cannot connect over IMAP`)
     }
 
-    // TODO(secrets): resolve config.passwordRef through the OS keychain. The
-    // adapter does not own secret storage; a resolver gets injected here once
-    // packages/crypto lands. Placeholder until then.
-    const password = ''
-
+    const password = await this.#resolveSecret(config.passwordRef)
     const client = buildClient(config, password)
     await client.connect()
 
