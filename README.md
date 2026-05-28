@@ -10,4 +10,4 @@ This repo is being built in the open. It is not usable yet. See the plan for cur
 
 ## License
 
-AGPL-3.0. See [LICENSE](./LICENSE) once it lands.
+Copyright (c) 2026 Marquis Nobles. Licensed under AGPL-3.0. See [LICENSE](./LICENSE).
