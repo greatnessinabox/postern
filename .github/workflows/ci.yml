@@ -1,5 +1,9 @@
 # Runs on ubuntu-latest. Tauri and SwiftUI builds get their own
 # macOS workflow later, this one is pure TS plumbing.
+#
+# Node is installed before pnpm: pnpm 11 requires Node >=22.13, newer than
+# the runner's bootstrap Node. So setup-node (reading .nvmrc) runs first,
+# then pnpm/action-setup installs pnpm under the right Node.
 name: CI
 
 on:
@@ -17,11 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
 
@@ -30,11 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
 
@@ -43,10 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
