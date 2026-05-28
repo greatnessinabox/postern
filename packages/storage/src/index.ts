@@ -13,4 +13,5 @@ export {
   type DatabaseHandle,
   runMigrations,
 } from './client.ts'
+export { type IngestContext, type IngestResult, ingestMessage } from './ingest.ts'
 export * as schema from './schema.ts'

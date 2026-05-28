@@ -6,15 +6,25 @@
  * (handle addresses, thread participants, message recipients) get their
  * own tables so they stay queryable.
  *
- * Dates store as Unix epoch integers. Branded IDs store as text.
- * FTS5 and vec0 virtual tables land in a later migration.
+ * ID columns carry the branded core types via $type, so reads and writes
+ * stay type-safe end to end with no casts. Dates store as Unix epoch
+ * integers. FTS5 and vec0 virtual tables land in a later migration.
  */
 
+import type {
+  AccountId,
+  BoostId,
+  HandleId,
+  MessageId,
+  PartId,
+  SpaceId,
+  ThreadId,
+} from '@postern/core'
 import { sql } from 'drizzle-orm'
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const accounts = sqliteTable('accounts', {
-  id: text('id').primaryKey(),
+  id: text('id').$type<AccountId>().primaryKey(),
   provider: text('provider', {
     enum: ['gmail', 'microsoft', 'jmap', 'imap'],
   }).notNull(),
@@ -31,7 +41,7 @@ export const accounts = sqliteTable('accounts', {
 })
 
 export const handles = sqliteTable('handles', {
-  id: text('id').primaryKey(),
+  id: text('id').$type<HandleId>().primaryKey(),
   displayName: text('display_name').notNull(),
   threadCount: integer('thread_count').notNull().default(0),
   lastContactedAt: integer('last_contacted_at', { mode: 'timestamp' }),
@@ -43,6 +53,7 @@ export const handleAddresses = sqliteTable(
   'handle_addresses',
   {
     handleId: text('handle_id')
+      .$type<HandleId>()
       .notNull()
       .references(() => handles.id, { onDelete: 'cascade' }),
     local: text('local').notNull(),
@@ -56,7 +67,7 @@ export const handleAddresses = sqliteTable(
 )
 
 export const spaces = sqliteTable('spaces', {
-  id: text('id').primaryKey(),
+  id: text('id').$type<SpaceId>().primaryKey(),
   name: text('name').notNull(),
   themeAccent: text('theme_accent').notNull(),
   themeBackgroundTint: text('theme_background_tint', {
@@ -75,9 +86,11 @@ export const accountSpaces = sqliteTable(
   'account_spaces',
   {
     accountId: text('account_id')
+      .$type<AccountId>()
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     spaceId: text('space_id')
+      .$type<SpaceId>()
       .notNull()
       .references(() => spaces.id, { onDelete: 'cascade' }),
   },
@@ -87,11 +100,13 @@ export const accountSpaces = sqliteTable(
 export const threads = sqliteTable(
   'threads',
   {
-    id: text('id').primaryKey(),
+    id: text('id').$type<ThreadId>().primaryKey(),
     accountId: text('account_id')
+      .$type<AccountId>()
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     spaceId: text('space_id')
+      .$type<SpaceId>()
       .notNull()
       .references(() => spaces.id, { onDelete: 'cascade' }),
     subject: text('subject').notNull(),
@@ -117,9 +132,11 @@ export const threadParticipants = sqliteTable(
   'thread_participants',
   {
     threadId: text('thread_id')
+      .$type<ThreadId>()
       .notNull()
       .references(() => threads.id, { onDelete: 'cascade' }),
     handleId: text('handle_id')
+      .$type<HandleId>()
       .notNull()
       .references(() => handles.id, { onDelete: 'cascade' }),
     role: text('role', { enum: ['from', 'to', 'cc', 'bcc'] }).notNull(),
@@ -130,11 +147,13 @@ export const threadParticipants = sqliteTable(
 export const messages = sqliteTable(
   'messages',
   {
-    id: text('id').primaryKey(),
+    id: text('id').$type<MessageId>().primaryKey(),
     threadId: text('thread_id')
+      .$type<ThreadId>()
       .notNull()
       .references(() => threads.id, { onDelete: 'cascade' }),
     accountId: text('account_id')
+      .$type<AccountId>()
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     messageIdHeader: text('message_id_header').notNull(),
@@ -143,6 +162,7 @@ export const messages = sqliteTable(
       enum: ['received', 'sent', 'draft', 'outbox'],
     }).notNull(),
     fromHandleId: text('from_handle_id')
+      .$type<HandleId>()
       .notNull()
       .references(() => handles.id),
     subject: text('subject').notNull(),
@@ -167,9 +187,11 @@ export const messageRecipients = sqliteTable(
   'message_recipients',
   {
     messageId: text('message_id')
+      .$type<MessageId>()
       .notNull()
       .references(() => messages.id, { onDelete: 'cascade' }),
     handleId: text('handle_id')
+      .$type<HandleId>()
       .notNull()
       .references(() => handles.id, { onDelete: 'cascade' }),
     role: text('role', { enum: ['to', 'cc', 'bcc'] }).notNull(),
@@ -180,8 +202,9 @@ export const messageRecipients = sqliteTable(
 export const parts = sqliteTable(
   'parts',
   {
-    id: text('id').primaryKey(),
+    id: text('id').$type<PartId>().primaryKey(),
     messageId: text('message_id')
+      .$type<MessageId>()
       .notNull()
       .references(() => messages.id, { onDelete: 'cascade' }),
     kind: text('kind', {
@@ -199,16 +222,16 @@ export const parts = sqliteTable(
 )
 
 export const boosts = sqliteTable('boosts', {
-  id: text('id').primaryKey(),
+  id: text('id').$type<BoostId>().primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
   kind: text('kind', { enum: ['css', 'transform', 'prompt'] }).notNull(),
   source: text('source').notNull(),
   scopeSenderDomains: text('scope_sender_domains'),
   scopeSenderAddresses: text('scope_sender_addresses'),
-  scopeSpaceId: text('scope_space_id').references(() => spaces.id, {
-    onDelete: 'cascade',
-  }),
+  scopeSpaceId: text('scope_space_id')
+    .$type<SpaceId>()
+    .references(() => spaces.id, { onDelete: 'cascade' }),
   scopeThreadSubjectPattern: text('scope_thread_subject_pattern'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   author: text('author'),
@@ -220,6 +243,7 @@ export const syncCursors = sqliteTable(
   'sync_cursors',
   {
     accountId: text('account_id')
+      .$type<AccountId>()
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     folder: text('folder').notNull(),

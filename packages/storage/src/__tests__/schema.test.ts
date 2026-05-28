@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { newAccountId, newHandleId, newMessageId, newSpaceId, newThreadId } from '@postern/core'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createDatabase, type DatabaseHandle, runMigrations } from '../client.ts'
@@ -50,25 +51,26 @@ describe('storage schema', () => {
   })
 
   it('inserts and reads an account', async () => {
-    const now = new Date()
+    const accId = newAccountId()
     await handle.db.insert(accounts).values({
-      id: 'acc_1',
+      id: accId,
       provider: 'gmail',
       address: 'marquis@gmail.com',
       displayName: 'Marquis Nobles',
-      createdAt: now,
+      createdAt: new Date(),
     })
 
-    const rows = await handle.db.select().from(accounts).where(eq(accounts.id, 'acc_1'))
+    const rows = await handle.db.select().from(accounts).where(eq(accounts.id, accId))
     expect(rows).toHaveLength(1)
     expect(rows[0]?.provider).toBe('gmail')
     expect(rows[0]?.address).toBe('marquis@gmail.com')
   })
 
   it('links an account to a space through the join table', async () => {
-    const now = new Date()
+    const accId = newAccountId()
+    const spaceId = newSpaceId()
     await handle.db.insert(spaces).values({
-      id: 'spc_work',
+      id: spaceId,
       name: 'Work',
       themeAccent: '#4A5568',
       themeBackgroundTint: 'parchment-cool',
@@ -76,46 +78,52 @@ describe('storage schema', () => {
       position: 0,
     })
     await handle.db.insert(accounts).values({
-      id: 'acc_ted',
+      id: accId,
       provider: 'microsoft',
       address: 'marquis@ted.com',
       displayName: 'Marquis at TED',
-      createdAt: now,
+      createdAt: new Date(),
     })
-    await handle.db.insert(accountSpaces).values({ accountId: 'acc_ted', spaceId: 'spc_work' })
+    await handle.db.insert(accountSpaces).values({ accountId: accId, spaceId })
 
     const links = await handle.db
       .select()
       .from(accountSpaces)
-      .where(eq(accountSpaces.spaceId, 'spc_work'))
+      .where(eq(accountSpaces.spaceId, spaceId))
     expect(links).toHaveLength(1)
-    expect(links[0]?.accountId).toBe('acc_ted')
+    expect(links[0]?.accountId).toBe(accId)
   })
 
   it('models a handle with multiple addresses', async () => {
+    const handleId = newHandleId()
     await handle.db.insert(handles).values({
-      id: 'hdl_marquis',
+      id: handleId,
       displayName: 'Marquis Nobles',
     })
     await handle.db.insert(handleAddresses).values([
-      { handleId: 'hdl_marquis', local: 'marquis', domain: 'cleverer.tech' },
-      { handleId: 'hdl_marquis', local: 'marquis', domain: 'ted.com' },
-      { handleId: 'hdl_marquis', local: 'marquis', domain: 'gmail.com' },
+      { handleId, local: 'marquis', domain: 'cleverer.tech' },
+      { handleId, local: 'marquis', domain: 'ted.com' },
+      { handleId, local: 'marquis', domain: 'gmail.com' },
     ])
 
     const addrs = await handle.db
       .select()
       .from(handleAddresses)
-      .where(eq(handleAddresses.handleId, 'hdl_marquis'))
+      .where(eq(handleAddresses.handleId, handleId))
     expect(addrs).toHaveLength(3)
     expect(addrs.map((a) => a.domain).sort()).toEqual(['cleverer.tech', 'gmail.com', 'ted.com'])
   })
 
   it('cascades thread deletes to messages', async () => {
+    const accId = newAccountId()
+    const spaceId = newSpaceId()
+    const handleId = newHandleId()
+    const threadId = newThreadId()
+    const messageId = newMessageId()
     const now = new Date()
     await handle.client.execute('pragma foreign_keys = on')
     await handle.db.insert(spaces).values({
-      id: 'spc_1',
+      id: spaceId,
       name: 'Personal',
       themeAccent: '#B08E5C',
       themeBackgroundTint: 'parchment-warm',
@@ -123,39 +131,36 @@ describe('storage schema', () => {
       position: 1,
     })
     await handle.db.insert(accounts).values({
-      id: 'acc_2',
+      id: accId,
       provider: 'imap',
       address: 'm@example.com',
       displayName: 'M',
       createdAt: now,
     })
-    await handle.db.insert(handles).values({
-      id: 'hdl_1',
-      displayName: 'Sender',
-    })
+    await handle.db.insert(handles).values({ id: handleId, displayName: 'Sender' })
     await handle.db.insert(threads).values({
-      id: 'thr_1',
-      accountId: 'acc_2',
-      spaceId: 'spc_1',
+      id: threadId,
+      accountId: accId,
+      spaceId,
       subject: 'Q3 review prep',
       subjectNormalized: 'q3 review prep',
       firstMessageAt: now,
       lastMessageAt: now,
     })
     await handle.db.insert(messages).values({
-      id: 'msg_1',
-      threadId: 'thr_1',
-      accountId: 'acc_2',
+      id: messageId,
+      threadId,
+      accountId: accId,
       messageIdHeader: '<a@example.com>',
       state: 'received',
-      fromHandleId: 'hdl_1',
+      fromHandleId: handleId,
       subject: 'Q3 review prep',
       receivedAt: now,
     })
 
-    await handle.db.delete(threads).where(eq(threads.id, 'thr_1'))
+    await handle.db.delete(threads).where(eq(threads.id, threadId))
 
-    const remaining = await handle.db.select().from(messages).where(eq(messages.threadId, 'thr_1'))
+    const remaining = await handle.db.select().from(messages).where(eq(messages.threadId, threadId))
     expect(remaining).toHaveLength(0)
   })
 })
