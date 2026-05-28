@@ -173,6 +173,26 @@ export const messages = sqliteTable(
       .notNull()
       .default('unclassified'),
     hasAttachments: integer('has_attachments', { mode: 'boolean' }).notNull().default(false),
+    trustSpf: text('trust_spf', {
+      enum: ['pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror'],
+    })
+      .notNull()
+      .default('none'),
+    trustDkim: text('trust_dkim', {
+      enum: ['pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror'],
+    })
+      .notNull()
+      .default('none'),
+    trustDmarc: text('trust_dmarc', {
+      enum: ['pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror'],
+    })
+      .notNull()
+      .default('none'),
+    trustVerdict: text('trust_verdict', {
+      enum: ['trusted', 'caution', 'failed', 'unknown'],
+    })
+      .notNull()
+      .default('unknown'),
     receivedAt: integer('received_at', { mode: 'timestamp' }).notNull(),
     sentAt: integer('sent_at', { mode: 'timestamp' }),
     readAt: integer('read_at', { mode: 'timestamp' }),

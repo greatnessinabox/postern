@@ -177,6 +177,23 @@ describe('ingestMessage', () => {
     expect(threadRows[0]?.yourTurn).toBe(false)
   })
 
+  it('persists the sender trust verdict on the message row', async () => {
+    const result = await ingestMessage(
+      db,
+      buildMessage({
+        messageIdHeader: '<trust@example.com>',
+        subject: 'Authenticated',
+        from: addr('sarah', 'example.com'),
+        date: new Date('2026-05-27T13:00:00Z'),
+        trust: { spf: 'pass', dkim: 'pass', dmarc: 'pass', verdict: 'trusted' },
+      }),
+      ctx(),
+    )
+    const msgRows = await db.select().from(messages).where(eq(messages.id, result.messageId))
+    expect(msgRows[0]?.trustVerdict).toBe('trusted')
+    expect(msgRows[0]?.trustSpf).toBe('pass')
+  })
+
   it('reuses one handle for the same address across messages', async () => {
     await ingestMessage(
       db,
