@@ -1,0 +1,28 @@
+# Default owner for everything
+* @greatnessinabox
+
+# Core: the eight canonical primitives and the protocol-neutral model
+/packages/core/ @greatnessinabox
+
+# Protocol adapters (IMAP, JMAP, Gmail, Graph)
+/packages/protocol/ @greatnessinabox
+
+# Storage (Drizzle schema, libsql, migrations)
+/packages/storage/ @greatnessinabox
+
+# AI Function interface and provider adapters
+/packages/ai/ @greatnessinabox
+
+# Crypto wrappers
+/packages/crypto/ @greatnessinabox
+
+# Docs: voice, principles, architecture, ADRs
+/docs/ @greatnessinabox
+
+# CI/CD and GitHub configuration
+/.github/ @greatnessinabox
+
+# Root configuration files
+/*.json @greatnessinabox
+/*.config.* @greatnessinabox
+/biome.json @greatnessinabox

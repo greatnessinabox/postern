@@ -1,0 +1,45 @@
+name: Stale Issues and PRs
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Daily at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          stale-issue-message: |
+            This issue has been marked stale after 30 days without activity.
+            It will close in 14 days if nothing else happens. Comment or
+            remove the stale label if it is still relevant.
+          close-issue-message: |
+            Closed after 44 days of inactivity. Reopen if it still needs
+            attention.
+          stale-issue-label: "stale"
+          days-before-issue-stale: 30
+          days-before-issue-close: 14
+
+          stale-pr-message: |
+            This pull request has been marked stale after 30 days without
+            activity. It will close in 14 days. Push a commit or comment if
+            you are still on it.
+          close-pr-message: |
+            Closed after 44 days of inactivity. Reopen when you are ready to
+            continue.
+          stale-pr-label: "stale"
+          days-before-pr-stale: 30
+          days-before-pr-close: 14
+
+          exempt-issue-labels: "pinned,security,bug,help wanted,good first issue"
+          exempt-pr-labels: "pinned,security,work in progress"
+
+          operations-per-run: 50
