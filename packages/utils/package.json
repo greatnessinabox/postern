@@ -5,7 +5,16 @@
   "description": "MIME, address parsing, dates, and sanitizers.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
   "devDependencies": {
-    "@postern/tsconfig": "workspace:^"
+    "@postern/tsconfig": "workspace:^",
+    "@types/jsdom": "^28.0.3",
+    "jsdom": "^29.1.1"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.7"
   }
 }
