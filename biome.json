@@ -17,6 +17,7 @@
       "!**/build",
       "!**/.expo",
       "!**/coverage",
+      "!**/drizzle",
       "!**/LICENSE",
       "!**/*.md"
     ]

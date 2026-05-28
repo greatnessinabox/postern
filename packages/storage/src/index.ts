@@ -1,12 +1,16 @@
 /**
- * Storage adapters: SQLite (libsql) on every platform.
+ * Storage: SQLite (libsql) on every platform, wrapped by Drizzle.
  *
- * Schemas live here. Drizzle ORM wraps libsql. The eight canonical
- * primitives map to tables one-to-one. FTS5 indexes message bodies.
- * sqlite-vec indexes embeddings.
- *
- * Schema definitions land in subsequent commits once drizzle-orm is
- * installed.
+ * The eight canonical primitives map to tables in schema.ts. FTS5 and
+ * sqlite-vec virtual tables land in a later migration.
  */
 
 export const STORAGE_VERSION = 1
+
+export {
+  createDatabase,
+  type Database,
+  type DatabaseHandle,
+  runMigrations,
+} from './client.ts'
+export * as schema from './schema.ts'
