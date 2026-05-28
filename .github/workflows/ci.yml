@@ -1,9 +1,9 @@
 # Runs on ubuntu-latest. Tauri and SwiftUI builds get their own
 # macOS workflow later, this one is pure TS plumbing.
 #
-# Node is installed before pnpm: pnpm 11 requires Node >=22.13, newer than
-# the runner's bootstrap Node. So setup-node (reading .nvmrc) runs first,
-# then pnpm/action-setup installs pnpm under the right Node.
+# pnpm is provisioned via corepack (not pnpm/action-setup, which runs on
+# the action's node20 runtime and can't install pnpm 11). corepack ships
+# with Node 24 and reads the packageManager field to install pnpm 11.4.
 name: CI
 
 on:
@@ -15,6 +15,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
 jobs:
   lint:
     name: Lint
@@ -24,7 +27,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - uses: pnpm/action-setup@v4
+      - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
 
@@ -36,7 +39,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - uses: pnpm/action-setup@v4
+      - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
 
@@ -48,6 +51,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - uses: pnpm/action-setup@v4
+      - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
