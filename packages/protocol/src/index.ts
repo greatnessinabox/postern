@@ -7,8 +7,10 @@
  * @postern/core types.
  */
 
-import type { Account, Message, PartId, Thread, ThreadId } from '@postern/core'
+import type { Account, Message, PartId, ThreadId } from '@postern/core'
+import type { ParsedMessage } from './mime.ts'
 
+export { ImapAdapter } from './imap.ts'
 export type { ParsedMessage, ParsedPart } from './mime.ts'
 export { parseRawMessage } from './mime.ts'
 export type { TrustInput } from './trust.ts'
@@ -30,8 +32,7 @@ export interface SyncCursor {
 }
 
 export interface SyncDelta {
-  readonly threads: readonly Thread[]
-  readonly messages: readonly Message[]
+  readonly messages: readonly ParsedMessage[]
   readonly cursor: SyncCursor
 }
 
