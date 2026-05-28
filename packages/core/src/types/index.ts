@@ -37,3 +37,4 @@ export type {
   ThreadParticipant,
   ThreadState,
 } from './thread.ts'
+export type { AuthResult, TrustSignals, TrustVerdict } from './trust.ts'

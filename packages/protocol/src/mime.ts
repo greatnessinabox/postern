@@ -7,10 +7,13 @@
  * data out, no database, no IDs.
  */
 
-import type { EmailAddress, ParsedMessage, ParsedPart } from '@postern/core'
+import type { EmailAddress, ParsedMessage, ParsedPart, TrustSignals } from '@postern/core'
 import { type AddressObject, simpleParser } from 'mailparser'
+import { summarizeTrust } from './trust.ts'
 
 export type { ParsedMessage, ParsedPart } from '@postern/core'
+export type { TrustInput } from './trust.ts'
+export { summarizeTrust } from './trust.ts'
 
 function toEmailAddress(address: string, name: string): EmailAddress {
   const at = address.lastIndexOf('@')
@@ -36,6 +39,26 @@ function extractAddresses(obj: AddressObject | AddressObject[] | undefined): Ema
 function makeSnippet(text: string | undefined, html: string | false): string {
   const source = text ?? (typeof html === 'string' ? html.replace(/<[^>]+>/g, ' ') : '')
   return source.replace(/\s+/g, ' ').trim().slice(0, 140)
+}
+
+function trustFromHeaders(
+  headerLines: readonly { readonly key: string; readonly line: string }[],
+): TrustSignals {
+  const authenticationResults: string[] = []
+  let receivedSpf: string | undefined
+  let hasDkimSignature = false
+  for (const { key, line } of headerLines) {
+    const colon = line.indexOf(':')
+    const value = colon >= 0 ? line.slice(colon + 1).trim() : ''
+    if (key === 'authentication-results') authenticationResults.push(value)
+    else if (key === 'received-spf' && receivedSpf === undefined) receivedSpf = value
+    else if (key === 'dkim-signature') hasDkimSignature = true
+  }
+  return summarizeTrust({
+    authenticationResults,
+    hasDkimSignature,
+    ...(receivedSpf !== undefined ? { receivedSpf } : {}),
+  })
 }
 
 export async function parseRawMessage(raw: string | Buffer): Promise<ParsedMessage> {
@@ -87,6 +110,7 @@ export async function parseRawMessage(raw: string | Buffer): Promise<ParsedMessa
     snippet: makeSnippet(mail.text, mail.html),
     parts,
     hasAttachments: mail.attachments.length > 0,
+    trust: trustFromHeaders(mail.headerLines),
     ...(mail.inReplyTo !== undefined ? { inReplyTo: mail.inReplyTo } : {}),
   }
 }

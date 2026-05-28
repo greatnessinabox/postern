@@ -10,6 +10,7 @@
 
 import type { EmailAddress } from './common.ts'
 import type { PartKind } from './part.ts'
+import type { TrustSignals } from './trust.ts'
 
 export interface ParsedPart {
   readonly kind: PartKind
@@ -33,4 +34,5 @@ export interface ParsedMessage {
   readonly snippet: string
   readonly parts: readonly ParsedPart[]
   readonly hasAttachments: boolean
+  readonly trust: TrustSignals
 }

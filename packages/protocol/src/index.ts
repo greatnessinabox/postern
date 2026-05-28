@@ -11,6 +11,8 @@ import type { Account, Message, PartId, Thread, ThreadId } from '@postern/core'
 
 export type { ParsedMessage, ParsedPart } from './mime.ts'
 export { parseRawMessage } from './mime.ts'
+export type { TrustInput } from './trust.ts'
+export { summarizeTrust } from './trust.ts'
 
 export interface Folder {
   readonly name: string
