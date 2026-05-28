@@ -21,6 +21,11 @@ updates:
         dependency-type: production
         update-types:
           - patch
+    ignore:
+      # Major bumps are reviewed and applied by hand. Security advisories
+      # still raise PRs regardless of this rule.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions
   - package-ecosystem: github-actions
