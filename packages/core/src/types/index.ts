@@ -29,6 +29,7 @@ export type {
   MessageRecipient,
   MessageState,
 } from './message.ts'
+export type { ParsedMessage, ParsedPart } from './parsed.ts'
 export type { Part, PartKind } from './part.ts'
 export type { Space, SpaceTheme } from './space.ts'
 export type {

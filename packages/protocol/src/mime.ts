@@ -7,32 +7,10 @@
  * data out, no database, no IDs.
  */
 
-import type { EmailAddress, PartKind } from '@postern/core'
+import type { EmailAddress, ParsedMessage, ParsedPart } from '@postern/core'
 import { type AddressObject, simpleParser } from 'mailparser'
 
-export interface ParsedPart {
-  readonly kind: PartKind
-  readonly contentType: string
-  readonly filename?: string
-  readonly size: number
-  readonly inline: boolean
-  readonly content?: string
-  readonly contentId?: string
-}
-
-export interface ParsedMessage {
-  readonly messageIdHeader: string
-  readonly inReplyTo?: string
-  readonly subject: string
-  readonly from: EmailAddress
-  readonly to: readonly EmailAddress[]
-  readonly cc: readonly EmailAddress[]
-  readonly bcc: readonly EmailAddress[]
-  readonly date: Date
-  readonly snippet: string
-  readonly parts: readonly ParsedPart[]
-  readonly hasAttachments: boolean
-}
+export type { ParsedMessage, ParsedPart } from '@postern/core'
 
 function toEmailAddress(address: string, name: string): EmailAddress {
   const at = address.lastIndexOf('@')
