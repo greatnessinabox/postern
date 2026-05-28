@@ -10,7 +10,7 @@
 import type { Account, Message, PartId, ThreadId } from '@postern/core'
 import type { ParsedMessage } from './mime.ts'
 
-export { ImapAdapter, type SecretResolver } from './imap.ts'
+export { type CredentialResolver, ImapAdapter, type ImapCredential } from './imap.ts'
 export type { ParsedMessage, ParsedPart } from './mime.ts'
 export { parseRawMessage } from './mime.ts'
 export type { TrustInput } from './trust.ts'

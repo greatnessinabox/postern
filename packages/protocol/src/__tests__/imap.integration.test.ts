@@ -58,7 +58,7 @@ async function seedInbox(): Promise<void> {
 
 describe('ImapAdapter against GreenMail', () => {
   // GreenMail runs with auth disabled, so any non-empty password works.
-  const adapter = new ImapAdapter(async () => 'seed')
+  const adapter = new ImapAdapter(async () => ({ kind: 'password', secret: 'seed' }))
 
   beforeAll(async () => {
     await seedInbox()

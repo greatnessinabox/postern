@@ -18,6 +18,7 @@
       "!**/.expo",
       "!**/coverage",
       "!**/drizzle",
+      "!**/src-tauri",
       "!**/LICENSE",
       "!**/*.md"
     ]
@@ -66,7 +67,8 @@
         "noUnusedImports": "error"
       },
       "complexity": {
-        "noUselessTypeConstraint": "error"
+        "noUselessTypeConstraint": "error",
+        "useLiteralKeys": "off"
       }
     }
   },

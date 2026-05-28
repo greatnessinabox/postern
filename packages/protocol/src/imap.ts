@@ -63,28 +63,38 @@ function toFolder(entry: ListResponse): Folder {
   }
 }
 
-function buildClient(config: ImapConfig, password: string): ImapFlow {
+export type ImapCredential =
+  | { readonly kind: 'password'; readonly secret: string }
+  | { readonly kind: 'oauth'; readonly accessToken: string }
+
+function buildClient(config: ImapConfig, credential: ImapCredential): ImapFlow {
+  const auth =
+    credential.kind === 'oauth'
+      ? { user: config.username, accessToken: credential.accessToken }
+      : { user: config.username, pass: credential.secret }
   return new ImapFlow({
     host: config.host,
     port: config.port,
     secure: config.security === 'tls',
-    auth: { user: config.username, pass: password },
+    auth,
     logger: false,
   })
 }
 
 /**
- * Resolves a passwordRef (an opaque keychain handle) to the secret itself.
- * The adapter never stores secrets; packages/crypto injects this resolver.
+ * Resolves an account's IMAP credential: a password for generic IMAP, or
+ * an OAuth access token for Gmail and Microsoft. The adapter owns no secret
+ * storage; packages/crypto injects this resolver (it reads passwordRef or
+ * mints a fresh OAuth token from the keychain).
  */
-export type SecretResolver = (passwordRef: string) => Promise<string>
+export type CredentialResolver = (account: Account) => Promise<ImapCredential>
 
 export class ImapAdapter implements ProtocolAdapter {
   readonly providerKind = 'imap'
-  readonly #resolveSecret: SecretResolver
+  readonly #resolveCredential: CredentialResolver
 
-  constructor(resolveSecret: SecretResolver) {
-    this.#resolveSecret = resolveSecret
+  constructor(resolveCredential: CredentialResolver) {
+    this.#resolveCredential = resolveCredential
   }
 
   async connect(account: Account): Promise<Connection> {
@@ -93,8 +103,8 @@ export class ImapAdapter implements ProtocolAdapter {
       throw new Error(`Account ${account.id} has no imapConfig; cannot connect over IMAP`)
     }
 
-    const password = await this.#resolveSecret(config.passwordRef)
-    const client = buildClient(config, password)
+    const credential = await this.#resolveCredential(account)
+    const client = buildClient(config, credential)
     await client.connect()
 
     const connection: ImapConnection = {
