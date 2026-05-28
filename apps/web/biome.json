@@ -1,0 +1,16 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "root": false,
+  "extends": ["../../biome.json"],
+  "vcs": {
+    "useIgnoreFile": false
+  },
+  "files": {
+    "includes": ["!**/node_modules", "!**/.next", "!**/.turbo", "!**/dist", "!next-env.d.ts"]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
+}

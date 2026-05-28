@@ -3,7 +3,8 @@ packages:
   - 'packages/*'
   - 'tools/*'
 
-# pnpm 11 blocks dependency build scripts by default. esbuild ships its
-# native binary and its install script is safe and expected.
+# pnpm 11 blocks dependency build scripts by default. esbuild and sharp ship
+# native binaries and their install scripts are safe and expected.
 allowBuilds:
   esbuild: true
+  sharp: true

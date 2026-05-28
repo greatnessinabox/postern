@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  --color-parchment: #faf7f2;
+  --color-parchment-warm: #fbf6ec;
+  --color-parchment-cool: #f7f6f3;
+  --color-parchment-deep: #f2ede3;
+
+  --color-ink: #1a1612;
+  --color-ink-soft: #3d352c;
+  --color-ink-faint: #7a6f61;
+  --color-ink-ghost: #b6ab99;
+
+  --color-brass: #b08e5c;
+  --color-brass-deep: #8e6f44;
+  --color-brass-light: #d4b98a;
+
+  --color-slate-space: #4a5568;
+  --color-clay-space: #8b5e3c;
+
+  --font-ui: var(--font-inter), system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, serif;
+}
+
+html,
+body {
+  background: #efe9dd;
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle paper texture: low-opacity dot field over a warm vertical wash. */
+.paper-grain {
+  background-image:
+    radial-gradient(rgba(26, 22, 18, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, #faf7f2 0%, #f7f2e8 100%);
+  background-size:
+    3px 3px,
+    100% 100%;
+}
+
+/* Tile hover elevation. CSS only, restrained. */
+.tile {
+  transition:
+    transform 180ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease;
+}
+
+.tile:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 0 rgba(26, 22, 18, 0.05),
+    0 12px 24px -12px rgba(26, 22, 18, 0.18);
+  border-color: rgba(26, 22, 18, 0.18);
+}
+
+/* Default tile shadow. */
+.shadow-tile {
+  box-shadow:
+    0 1px 0 rgba(26, 22, 18, 0.04),
+    0 1px 2px rgba(26, 22, 18, 0.03);
+}
+
+/* Space sidebar item hover. */
+.space-item {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.space-item:hover {
+  background-color: rgba(26, 22, 18, 0.04);
+}
+
+/* Uppercase frame labels. */
+.frame-label {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-ink-faint);
+}
+
+/* Brass "your turn" indicator. */
+.brass-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--color-brass);
+  box-shadow:
+    0 0 0 2px rgba(176, 142, 92, 0.12),
+    0 0 0 4px rgba(176, 142, 92, 0.06);
+}
