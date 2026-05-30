@@ -180,6 +180,7 @@ export async function ingestMessage(
     fromHandleId,
     subject: parsed.subject,
     snippet: parsed.snippet,
+    classification: parsed.classification,
     hasAttachments: parsed.hasAttachments,
     trustSpf: parsed.trust.spf,
     trustDkim: parsed.trust.dkim,

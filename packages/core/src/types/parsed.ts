@@ -9,6 +9,7 @@
  */
 
 import type { EmailAddress } from './common.ts'
+import type { MessageClassification } from './message.ts'
 import type { PartKind } from './part.ts'
 import type { TrustSignals } from './trust.ts'
 
@@ -35,4 +36,5 @@ export interface ParsedMessage {
   readonly parts: readonly ParsedPart[]
   readonly hasAttachments: boolean
   readonly trust: TrustSignals
+  readonly classification: MessageClassification
 }

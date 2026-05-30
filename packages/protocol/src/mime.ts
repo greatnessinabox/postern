@@ -7,7 +7,14 @@
  * data out, no database, no IDs.
  */
 
-import type { EmailAddress, ParsedMessage, ParsedPart, TrustSignals } from '@postern/core'
+import {
+  classifyMessage,
+  type EmailAddress,
+  type MessageClassification,
+  type ParsedMessage,
+  type ParsedPart,
+  type TrustSignals,
+} from '@postern/core'
 import { type AddressObject, simpleParser } from 'mailparser'
 import { summarizeTrust } from './trust.ts'
 
@@ -61,6 +68,37 @@ function trustFromHeaders(
   })
 }
 
+function classificationFromHeaders(
+  headerLines: readonly { readonly key: string; readonly line: string }[],
+  from: EmailAddress,
+  subject: string,
+): MessageClassification {
+  let hasListUnsubscribe = false
+  let hasListId = false
+  let precedence = ''
+  let autoSubmitted = ''
+  let hasGithubEventHeader = false
+  for (const { key, line } of headerLines) {
+    const colon = line.indexOf(':')
+    const value = colon >= 0 ? line.slice(colon + 1).trim() : ''
+    if (key === 'list-unsubscribe') hasListUnsubscribe = true
+    else if (key === 'list-id') hasListId = true
+    else if (key === 'precedence') precedence = value
+    else if (key === 'auto-submitted') autoSubmitted = value
+    else if (key === 'x-github-event') hasGithubEventHeader = true
+  }
+  return classifyMessage({
+    fromLocal: from.local,
+    fromDomain: from.domain,
+    subject,
+    hasListUnsubscribe,
+    hasListId,
+    precedence,
+    autoSubmitted,
+    hasGithubEventHeader,
+  })
+}
+
 export async function parseRawMessage(raw: string | Buffer): Promise<ParsedMessage> {
   const mail = await simpleParser(raw)
 
@@ -111,6 +149,7 @@ export async function parseRawMessage(raw: string | Buffer): Promise<ParsedMessa
     parts,
     hasAttachments: mail.attachments.length > 0,
     trust: trustFromHeaders(mail.headerLines),
+    classification: classificationFromHeaders(mail.headerLines, from, mail.subject ?? ''),
     ...(mail.inReplyTo !== undefined ? { inReplyTo: mail.inReplyTo } : {}),
   }
 }

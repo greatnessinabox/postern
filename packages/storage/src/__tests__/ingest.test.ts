@@ -32,6 +32,7 @@ function buildMessage(
     parts: [{ kind: 'text', contentType: 'text/plain', size: 4, inline: true, content: 'hi' }],
     hasAttachments: false,
     trust: { spf: 'none', dkim: 'none', dmarc: 'none', verdict: 'unknown' },
+    classification: 'unclassified',
     ...fields,
   }
 }

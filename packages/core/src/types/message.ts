@@ -10,7 +10,14 @@ import type { AccountId, HandleId, MessageId, PartId, ThreadId } from './common.
 
 export type MessageState = 'received' | 'sent' | 'draft' | 'outbox'
 
-export type MessageClassification = 'personal' | 'newsletter' | 'transactional' | 'unclassified'
+export type MessageClassification =
+  | 'personal'
+  | 'newsletter'
+  | 'notification'
+  | 'transactional'
+  | 'promotional'
+  | 'job'
+  | 'unclassified'
 
 export interface MessageRecipient {
   readonly handleId: HandleId

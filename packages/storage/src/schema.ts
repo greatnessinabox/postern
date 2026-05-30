@@ -168,7 +168,15 @@ export const messages = sqliteTable(
     subject: text('subject').notNull(),
     snippet: text('snippet').notNull().default(''),
     classification: text('classification', {
-      enum: ['personal', 'newsletter', 'transactional', 'unclassified'],
+      enum: [
+        'personal',
+        'newsletter',
+        'notification',
+        'transactional',
+        'promotional',
+        'job',
+        'unclassified',
+      ],
     })
       .notNull()
       .default('unclassified'),
