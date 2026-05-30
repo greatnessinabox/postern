@@ -18,7 +18,7 @@
  * email) is what the adapter's CredentialResolver reads.
  */
 
-import { exec } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import http from 'node:http'
 
@@ -73,22 +73,13 @@ async function exchangeCode(code, redirectUri) {
   return res.json()
 }
 
-function storeInKeychain(account, refreshToken) {
+function storeInKeychain(account, service, secret) {
   return new Promise((resolve) => {
-    const args = [
-      'add-generic-password',
-      '-a',
-      account,
-      '-s',
-      'postern-gmail-refresh',
-      '-w',
-      refreshToken,
-      '-U',
-    ]
-    const child = exec(`security ${args.map((a) => JSON.stringify(a)).join(' ')}`, (err) => {
-      resolve(err === null)
-    })
-    child.on('error', () => resolve(false))
+    execFile(
+      'security',
+      ['add-generic-password', '-a', account, '-s', service, '-w', secret, '-U'],
+      (err) => resolve(err === null),
+    )
   })
 }
 
@@ -126,11 +117,15 @@ const server = http.createServer((req, res) => {
         )
       } else if (STORE) {
         const account = process.env['POSTERN_GMAIL_ACCOUNT'] ?? 'greatnessinabox@gmail.com'
-        const ok = await storeInKeychain(account, tokens.refresh_token)
+        const results = await Promise.all([
+          storeInKeychain(account, 'postern-gmail-client-id', CLIENT_ID),
+          storeInKeychain(account, 'postern-gmail-client-secret', CLIENT_SECRET),
+          storeInKeychain(account, 'postern-gmail-refresh', tokens.refresh_token),
+        ])
         console.log(
-          ok
-            ? `Stored in keychain (service postern-gmail-refresh, account ${account}).`
-            : 'Could not write to keychain; copy the refresh token above by hand.',
+          results.every(Boolean)
+            ? `Stored client id, secret, and refresh token in the keychain (account ${account}).`
+            : 'Some keychain writes failed; copy the values above by hand.',
         )
       }
       server.close()
