@@ -102,6 +102,42 @@ const cases: ReadonlyArray<[string, ClassificationSignals, MessageClassification
     'job',
   ],
   [
+    'Nextdoor neighborhood digest (social, no list header)',
+    signals({
+      fromLocal: 'reply',
+      fromDomain: 'ss.email.nextdoor.com',
+      subject: 'DONOT USE Artigus Roofing!',
+    }),
+    'newsletter',
+  ],
+  [
+    'Walmart delivery notice',
+    signals({
+      fromLocal: 'help',
+      fromDomain: 'walmart.com',
+      subject: 'Delivered: BUILT Puff Protein Bar and 48 items',
+    }),
+    'transactional',
+  ],
+  [
+    'Airbnb reservation',
+    signals({
+      fromLocal: 'express',
+      fromDomain: 'airbnb.com',
+      subject: 'RE: Reservation for Brand New 07 Bedrooms',
+    }),
+    'transactional',
+  ],
+  [
+    'Walmart review request',
+    signals({
+      fromLocal: 'feedback',
+      fromDomain: 'reviews.walmart.com',
+      subject: 'Review your recent Walmart purchase',
+    }),
+    'transactional',
+  ],
+  [
     'A real human reply',
     signals({
       fromLocal: 'sarah',

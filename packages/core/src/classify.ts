@@ -53,12 +53,26 @@ const JOB_DOMAINS = [
   'wellfound.com',
 ]
 
+// Social networks that send bulk digests without standard list headers.
+// They are read-content, so they route to the Reader surface.
+const SOCIAL_DOMAINS = [
+  'nextdoor.com',
+  'facebookmail.com',
+  'mail.instagram.com',
+  'reddit.com',
+  'redditmail.com',
+  'meetup.com',
+  'x.com',
+  'twitter.com',
+  'nextdoor.co.uk',
+]
+
 // Local-parts that only ever belong to a machine or a brand mailbox.
 const AUTOMATED_LOCAL =
-  /^(no-?reply|do-?not-?reply|donotreply|noreply|notifications?|mailer|automated|auto|bounce|postmaster|transactions?|receipts?|billing|invoices?|orders?|offers?|deals?|news|account)/
+  /^(no-?reply|do-?not-?reply|donotreply|noreply|notifications?|mailer|automated|auto|bounce|postmaster|transactions?|receipts?|billing|invoices?|orders?|offers?|deals?|news|account|feedback|customer-?service|customer-?care|express|care)/
 
 const TRANSACTIONAL_SUBJECT =
-  /receipt|order\b|order #|invoice|payment|statement|your bill|shipped|out for delivery|delivery|tracking|confirmation|refund|transaction|membership|subscription|appointment|\bappt\b|reminder for your|your (order|purchase|booking|reservation|ticket)/i
+  /receipt|order\b|order #|invoice|payment|statement|your bill|shipped|delivered|out for delivery|delivery|tracking|confirmation|refund|transaction|membership|subscription|appointment|\bappt\b|reservation|reminder for your|(your|review your|review this) (order|purchase|booking|reservation|ticket|review)|your review/i
 
 const PROMO_SUBJECT =
   /% off|\bsale\b|\bdeal\b|\bsave\b|discount|extra \d|coupon|clearance|ends (soon|today)|shop now|\bbuy\b|limited time|free \w|bogo|black friday|cyber monday/i
@@ -84,6 +98,10 @@ export function classifyMessage(s: ClassificationSignals): MessageClassification
     /job|alert|application|interview|hiring|position|\brole\b/i.test(subject)
   ) {
     return 'job'
+  }
+
+  if (SOCIAL_DOMAINS.some((d) => endsWithDomain(domain, d))) {
+    return 'newsletter'
   }
 
   if (bulk) {
