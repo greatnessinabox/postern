@@ -44,15 +44,26 @@ adapter, `https://mail.google.com/` is the one.
 
 ## Get a token
 
-Run a one-time local OAuth flow with the downloaded client (a small
-google-auth-library script, the gcloud `application-default login` flow
-with the Gmail scope, or the OAuth Playground). It returns a refresh
-token. Postern exchanges the refresh token for short-lived access tokens
-at connect time.
+Use the bundled helper. It runs the Desktop flow in your browser (PKCE,
+loopback redirect) and prints a refresh token. Zero dependencies, Node 22+.
 
-Store the client ID, client secret, and refresh token in the OS keychain.
-The adapter never reads them from disk in plaintext; the CredentialResolver
-hands the adapter a fresh access token.
+```bash
+export GOOGLE_CLIENT_ID=...        # from the Desktop client you created
+export GOOGLE_CLIENT_SECRET=...
+node scripts/oauth-token.mjs           # prints the tokens
+node scripts/oauth-token.mjs --store   # also saves the refresh token to the macOS keychain
+```
+
+With `--store`, the refresh token lands in the keychain under service
+`postern-gmail-refresh`, account = your email (override with
+`POSTERN_GMAIL_ACCOUNT`). That keychain entry is what the adapter's
+CredentialResolver reads. Postern exchanges the refresh token for
+short-lived access tokens at connect time, so nothing long-lived sits in
+plaintext on disk.
+
+If no refresh token comes back, revoke the app at
+`https://myaccount.google.com/permissions` and rerun (the helper forces
+`prompt=consent`).
 
 ## How the adapter uses it
 

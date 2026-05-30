@@ -10,3 +10,6 @@ coverage/
 .env
 .env.local
 *.tsbuildinfo
+
+# Locally installed agent skills, not project source
+.github/skills/

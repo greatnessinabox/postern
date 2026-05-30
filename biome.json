@@ -19,6 +19,7 @@
       "!**/coverage",
       "!**/drizzle",
       "!**/src-tauri",
+      "!.github/skills",
       "!**/LICENSE",
       "!**/*.md"
     ]
@@ -79,5 +80,11 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["scripts/**"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    }
+  ]
 }
