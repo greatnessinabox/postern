@@ -76,18 +76,21 @@ describe.skipIf(!ENABLED)('ImapAdapter against real Gmail', () => {
 
       const since = new Date()
       since.setDate(since.getDate() - 7)
-      const delta = await adapter.fetchSince(connection, inbox, {
-        folder: inbox.path,
-        lastSyncedAt: since,
-      })
+      // Bounded to the newest 25 so a large mailbox does not stall the test.
+      const delta = await adapter.fetchSince(
+        connection,
+        inbox,
+        { folder: inbox.path, lastSyncedAt: since },
+        25,
+      )
 
-      // Print the first few subjects so the run shows real inbox content.
+      // Print a few subjects so the run shows real inbox content.
       for (const m of delta.messages.slice(0, 8)) {
         console.log(`  [${m.trust.verdict}] ${m.subject} — ${m.from.local}@${m.from.domain}`)
       }
-      console.log(`Fetched ${delta.messages.length} message(s) from the last 7 days.`)
+      console.log(`Fetched ${delta.messages.length} message(s).`)
 
-      expect(Array.isArray(delta.messages)).toBe(true)
+      expect(delta.messages.length).toBeGreaterThan(0)
       expect(delta.cursor.folder).toBe(inbox.path)
     } finally {
       await connection.close()

@@ -56,7 +56,12 @@ export interface ProtocolAdapter {
   readonly providerKind: Account['provider']
   connect(account: Account): Promise<Connection>
   listFolders(connection: Connection): Promise<readonly Folder[]>
-  fetchSince(connection: Connection, folder: Folder, cursor?: SyncCursor): Promise<SyncDelta>
+  fetchSince(
+    connection: Connection,
+    folder: Folder,
+    cursor?: SyncCursor,
+    limit?: number,
+  ): Promise<SyncDelta>
   fetchBody(
     connection: Connection,
     folder: Folder,

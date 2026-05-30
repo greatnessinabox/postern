@@ -15,6 +15,7 @@ import { parseRawMessage } from './mime.ts'
 type FolderRole = Folder['role']
 
 const DEFAULT_LOOKBACK_DAYS = 90
+const DEFAULT_BATCH = 100
 
 interface ImapConnection extends Connection {
   readonly client: ImapFlow
@@ -127,6 +128,7 @@ export class ImapAdapter implements ProtocolAdapter {
     connection: Connection,
     folder: Folder,
     cursor?: SyncCursor,
+    limit: number = DEFAULT_BATCH,
   ): Promise<SyncDelta> {
     const client = requireClient(connection)
     const lock = await client.getMailboxLock(folder.path, { readOnly: true })
@@ -134,10 +136,18 @@ export class ImapAdapter implements ProtocolAdapter {
       const since = cursor?.lastSyncedAt ?? lookbackStart()
       const uids = await client.search({ since }, { uid: true })
 
+      // Bound each round to the newest `limit` UIDs. On a large mailbox the
+      // search can match thousands; downloading every full source would stall
+      // the sync. The newest land first; older messages page in on later
+      // rounds. TODO(sync): envelope-first fetch so bodies load on demand
+      // rather than in the sync path.
+      const matched = uids === false ? [] : uids
+      const batch = matched.slice(-limit)
+
       const messages = []
       let highestUid = cursor?.lastUid ?? 0
-      if (uids !== false && uids.length > 0) {
-        for await (const item of client.fetch(uids, { uid: true, source: true }, { uid: true })) {
+      if (batch.length > 0) {
+        for await (const item of client.fetch(batch, { uid: true, source: true }, { uid: true })) {
           if (item.uid > highestUid) highestUid = item.uid
           if (item.source !== undefined) {
             messages.push(await parseRawMessage(item.source))
