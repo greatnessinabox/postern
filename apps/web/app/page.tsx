@@ -1,12 +1,8 @@
-import { activeSpace, spaces, threads } from './canvas/mock-data'
-import { Sidebar } from './canvas/Sidebar'
-import { ThreadTile } from './canvas/ThreadTile'
+import { Canvas } from './canvas/Canvas'
+import { readSnapshot } from './canvas/snapshot'
 
 export default function HomePage() {
-  const space = spaces.find((s) => s.id === activeSpace)
-  const visible = threads.filter((thread) => thread.space === activeSpace)
-  const ordered = [...visible].sort((a, b) => Number(b.pinned) - Number(a.pinned))
-  const pinnedCount = ordered.filter((thread) => thread.pinned).length
+  const snapshot = readSnapshot()
 
   return (
     <div className="min-h-screen px-8 py-12">
@@ -42,33 +38,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="flex">
-          <Sidebar activeSpace={activeSpace} />
-
-          <main className="paper-grain min-h-[640px] flex-1 px-8 py-6">
-            <div className="mb-6 flex items-baseline justify-between">
-              <div>
-                <h1 className="font-serif text-[28px] leading-none font-normal text-ink">
-                  {space?.name ?? 'Work'}
-                </h1>
-                <p className="mt-1.5 text-[12px] text-ink-faint">
-                  Active correspondence, last 14 days
-                </p>
-              </div>
-              <div className="text-[11px] text-ink-faint">
-                <span>{ordered.length} threads</span>
-                <span className="mx-2 text-ink/15">·</span>
-                <span>{pinnedCount} pinned</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              {ordered.map((thread) => (
-                <ThreadTile key={thread.id} thread={thread} />
-              ))}
-            </div>
-          </main>
-        </div>
+        <Canvas snapshot={snapshot} />
       </div>
     </div>
   )
