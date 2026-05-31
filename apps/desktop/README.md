@@ -36,6 +36,22 @@ not reachable, so the window renders either way. Needs the Rust toolchain
 (`rustup`) and, on macOS, Xcode for the system WebView. `cargo build` of
 `src-tauri` is verified.
 
+## The local store
+
+The daemon does not refetch the provider on every request. It syncs mail into
+a local libsql (SQLite) store via `@postern/storage` and serves `/spaces` from
+disk, so the inbox opens in tens of milliseconds instead of the seconds a live
+fetch takes. The provider stays the source of truth; sync only catches the
+store up to it.
+
+- Sync is incremental per account (saved cursors). Re-syncs dedup by
+  Message-ID, so they never duplicate rows.
+- A background sync runs on startup and every five minutes. `GET /spaces?refresh=1`
+  forces one before responding.
+- Store path defaults to `~/.postern/postern.db`. Override with `POSTERN_DB_PATH`.
+  The migrations ship next to the bundle at `dist/migrations` (override with
+  `POSTERN_MIGRATIONS_DIR`).
+
 ## What is left for production bundling
 
 1. **Daemon as a self-contained binary.** A Tauri sidecar is a real
