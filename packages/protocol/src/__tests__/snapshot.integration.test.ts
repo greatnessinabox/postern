@@ -17,8 +17,11 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { AnthropicProvider, type TriageInput } from '@postern/ai'
 import { type Account, newAccountId, surfaceFor } from '@postern/core'
+import { createEmailSanitizer } from '@postern/utils'
+import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
 import { GmailAdapter } from '../gmail.ts'
+import type { Connection, Folder } from '../index.ts'
 
 const ENABLED = process.env['RUN_SNAPSHOT'] === '1'
 const FETCH = Number(process.env['SNAPSHOT_FETCH'] ?? '150')
@@ -88,6 +91,9 @@ interface Card {
   category: string
   trust: string
   messageCount: number
+  messageIdHeader: string
+  bodyHtml?: string
+  blockedImages?: number
 }
 
 const norm = (s: string) =>
@@ -147,6 +153,34 @@ async function applyTriage(
   buckets['threads'] = kept
 }
 
+/**
+ * Fetch and sanitize the bodies for the cards we will display on a surface,
+ * so the canvas can open them in a sandboxed reading view. Remote content is
+ * blocked (tracking-pixel protection); best-effort per message.
+ */
+async function fetchBodies(
+  adapter: GmailAdapter,
+  connection: Connection,
+  folder: Folder,
+  cards: readonly Card[],
+): Promise<void> {
+  const sanitizer = createEmailSanitizer(
+    new JSDOM('').window as unknown as Parameters<typeof createEmailSanitizer>[0],
+  )
+  for (const card of cards.slice(0, PER_SURFACE)) {
+    if (card.messageIdHeader.length === 0) continue
+    try {
+      const parts = await adapter.fetchBody(connection, folder, card.messageIdHeader)
+      const html = parts.find((p) => p.includes('<')) ?? parts[0] ?? ''
+      const clean = sanitizer.sanitize(html, { blockRemoteContent: true })
+      card.bodyHtml = clean.html
+      card.blockedImages = clean.blockedRemoteCount
+    } catch {
+      // Body is best-effort; the tile still renders without it.
+    }
+  }
+}
+
 async function snapshotAccount(
   cfg: AccountConfig,
   triageProvider?: AnthropicProvider,
@@ -196,13 +230,15 @@ async function snapshotAccount(
         category: m.classification,
         trust: m.trust.verdict,
         messageCount: 1,
+        messageIdHeader: m.messageIdHeader,
       })
     }
+    if (triageProvider !== undefined) {
+      await applyTriage(triageProvider, buckets)
+    }
+    await fetchBodies(adapter, connection, inbox, buckets['threads'] ?? [])
   } finally {
     await connection.close()
-  }
-  if (triageProvider !== undefined) {
-    await applyTriage(triageProvider, buckets)
   }
   return Object.fromEntries(
     Object.entries(buckets).map(([s, cards]) => [

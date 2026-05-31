@@ -143,9 +143,18 @@ importers:
       '@postern/tsconfig':
         specifier: workspace:^
         version: link:../tsconfig
+      '@postern/utils':
+        specifier: workspace:*
+        version: link:../utils
+      '@types/jsdom':
+        specifier: ^28.0.3
+        version: 28.0.3
       '@types/mailparser':
         specifier: ^3.4.6
         version: 3.4.6
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
 
   packages/storage:
     dependencies:
@@ -3789,7 +3798,7 @@ snapshots:
 
   '@types/conventional-commits-parser@5.0.2':
     dependencies:
-      '@types/node': 25.9.1
+      '@types/node': 24.12.4
 
   '@types/estree@1.0.8': {}
 
@@ -3797,7 +3806,7 @@ snapshots:
 
   '@types/jsdom@28.0.3':
     dependencies:
-      '@types/node': 25.9.1
+      '@types/node': 24.12.4
       '@types/tough-cookie': 4.0.5
       parse5: 8.0.1
       undici-types: 7.24.6
@@ -3830,7 +3839,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 25.9.1
+      '@types/node': 24.12.4
 
   '@vitest/expect@2.1.9':
     dependencies:
