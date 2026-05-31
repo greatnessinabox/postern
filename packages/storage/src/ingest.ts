@@ -55,14 +55,25 @@ function normalizeSubject(subject: string): string {
     .toLowerCase()
 }
 
-async function resolveHandle(db: Database, addr: EmailAddress): Promise<HandleId> {
+async function resolveHandle(
+  db: Database,
+  addr: EmailAddress,
+  cache?: Map<string, HandleId>,
+): Promise<HandleId> {
+  const key = addressString(addr)
+  const cached = cache?.get(key)
+  if (cached !== undefined) return cached
+
   const existing = await db
     .select({ handleId: handleAddresses.handleId })
     .from(handleAddresses)
     .where(and(eq(handleAddresses.local, addr.local), eq(handleAddresses.domain, addr.domain)))
     .limit(1)
   const found = existing[0]
-  if (found !== undefined) return found.handleId
+  if (found !== undefined) {
+    cache?.set(key, found.handleId)
+    return found.handleId
+  }
 
   const handleId = newHandleId()
   await db.insert(handles).values({
@@ -75,6 +86,7 @@ async function resolveHandle(db: Database, addr: EmailAddress): Promise<HandleId
     domain: addr.domain,
     ...(addr.displayName !== undefined ? { displayName: addr.displayName } : {}),
   })
+  cache?.set(key, handleId)
   return handleId
 }
 
@@ -147,25 +159,27 @@ export async function ingestMessage(
   db: Database,
   parsed: ParsedMessage,
   ctx: IngestContext,
+  handleCache?: Map<string, HandleId>,
 ): Promise<IngestResult> {
-  if (parsed.messageIdHeader.length > 0) {
-    const dup = await db
-      .select({ id: messages.id, threadId: messages.threadId })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.accountId, ctx.accountId),
-          eq(messages.messageIdHeader, parsed.messageIdHeader),
-        ),
-      )
-      .limit(1)
-    const existing = dup[0]
-    if (existing !== undefined) {
-      return { threadId: existing.threadId, messageId: existing.id, created: false }
-    }
+  // Messages with no Message-ID (some automated senders, drafts) still get a
+  // deterministic dedup key from account + sender + subject + time, so
+  // re-ingesting one does not insert a duplicate row.
+  const dedupeKey =
+    parsed.messageIdHeader.length > 0
+      ? parsed.messageIdHeader
+      : `synthetic:${addressString(parsed.from)}:${normalizeSubject(parsed.subject)}:${parsed.date.getTime()}`
+
+  const dup = await db
+    .select({ id: messages.id, threadId: messages.threadId })
+    .from(messages)
+    .where(and(eq(messages.accountId, ctx.accountId), eq(messages.messageIdHeader, dedupeKey)))
+    .limit(1)
+  const existing = dup[0]
+  if (existing !== undefined) {
+    return { threadId: existing.threadId, messageId: existing.id, created: false }
   }
 
-  const fromHandleId = await resolveHandle(db, parsed.from)
+  const fromHandleId = await resolveHandle(db, parsed.from, handleCache)
   const direction = addressString(parsed.from) === ctx.ownAddress ? 'sent' : 'received'
   const normalized = normalizeSubject(parsed.subject)
   const threadId = await resolveThread(db, parsed, ctx, normalized)
@@ -175,7 +189,7 @@ export async function ingestMessage(
     id: messageId,
     threadId,
     accountId: ctx.accountId,
-    messageIdHeader: parsed.messageIdHeader,
+    messageIdHeader: dedupeKey,
     state: direction,
     fromHandleId,
     subject: parsed.subject,
@@ -212,7 +226,7 @@ export async function ingestMessage(
   ]
   for (const group of recipientGroups) {
     for (const addr of group.list) {
-      const handleId = await resolveHandle(db, addr)
+      const handleId = await resolveHandle(db, addr, handleCache)
       await db
         .insert(messageRecipients)
         .values({ messageId, handleId, role: group.role })

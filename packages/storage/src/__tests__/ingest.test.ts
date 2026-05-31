@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import {
   type AccountId,
   type EmailAddress,
+  type HandleId,
   newAccountId,
   newSpaceId,
   type ParsedMessage,
@@ -225,5 +226,80 @@ describe('ingestMessage', () => {
     const allHandles = await db.select().from(handles)
     // marquis (own, from the 'to' field) + sarah
     expect(allHandles.length).toBe(2)
+  })
+
+  it('dedups a message with no Message-ID via a synthetic key', async () => {
+    const message = buildMessage({
+      messageIdHeader: '',
+      subject: 'No header here',
+      from: addr('auto', 'example.com'),
+      date: new Date('2026-05-27T10:00:00Z'),
+    })
+    const first = await ingestMessage(db, message, ctx())
+    const second = await ingestMessage(db, message, ctx())
+    expect(first.created).toBe(true)
+    expect(second.created).toBe(false)
+    expect(second.messageId).toBe(first.messageId)
+    expect(await db.select().from(messages)).toHaveLength(1)
+  })
+
+  it('handles out-of-order delivery: an older message arriving second', async () => {
+    const later = await ingestMessage(
+      db,
+      buildMessage({
+        messageIdHeader: '<late@example.com>',
+        subject: 'Plan',
+        from: addr('sarah', 'example.com'),
+        date: new Date('2026-05-27T15:00:00Z'),
+      }),
+      ctx(),
+    )
+    await ingestMessage(
+      db,
+      buildMessage({
+        messageIdHeader: '<early@example.com>',
+        inReplyTo: '<late@example.com>',
+        subject: 'Re: Plan',
+        from: addr('sarah', 'example.com'),
+        date: new Date('2026-05-27T14:00:00Z'),
+      }),
+      ctx(),
+    )
+    const rows = await db.select().from(threads).where(eq(threads.id, later.threadId))
+    const thread = rows[0]
+    expect(thread?.messageCount).toBe(2)
+    expect(thread?.firstMessageAt.getTime()).toBe(new Date('2026-05-27T14:00:00Z').getTime())
+    expect(thread?.lastMessageAt.getTime()).toBe(new Date('2026-05-27T15:00:00Z').getTime())
+    // The older message did not flip your-turn; the latest message is still
+    // the inbound one received first.
+    expect(thread?.yourTurn).toBe(true)
+  })
+
+  it('shares a handle cache across a batch to avoid re-resolving senders', async () => {
+    const cache = new Map<string, HandleId>()
+    await ingestMessage(
+      db,
+      buildMessage({
+        messageIdHeader: '<b1@example.com>',
+        subject: 'One',
+        from: addr('sarah', 'example.com'),
+        date: new Date('2026-05-27T10:00:00Z'),
+      }),
+      ctx(),
+      cache,
+    )
+    await ingestMessage(
+      db,
+      buildMessage({
+        messageIdHeader: '<b2@example.com>',
+        subject: 'Two',
+        from: addr('sarah', 'example.com'),
+        date: new Date('2026-05-27T11:00:00Z'),
+      }),
+      ctx(),
+      cache,
+    )
+    expect(cache.has('sarah@example.com')).toBe(true)
+    expect(await db.select().from(handles)).toHaveLength(2)
   })
 })
