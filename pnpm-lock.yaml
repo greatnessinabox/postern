@@ -137,6 +137,9 @@ importers:
         specifier: ^3.9.8
         version: 3.9.8
     devDependencies:
+      '@postern/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@postern/tsconfig':
         specifier: workspace:^
         version: link:../tsconfig

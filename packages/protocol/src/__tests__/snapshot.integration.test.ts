@@ -15,6 +15,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { AnthropicProvider, type TriageInput } from '@postern/ai'
 import { type Account, newAccountId, surfaceFor } from '@postern/core'
 import { describe, expect, it } from 'vitest'
 import { GmailAdapter } from '../gmail.ts'
@@ -95,8 +96,60 @@ const norm = (s: string) =>
     .trim()
     .toLowerCase()
 
+function anthropicKey(): string | undefined {
+  const env = process.env['ANTHROPIC_API_KEY']
+  if (env !== undefined && env.length > 0) return env
+  try {
+    const k = execFileSync(
+      'security',
+      ['find-generic-password', '-w', '-s', 'anthropic-api-key', '-a', 'postern'],
+      { encoding: 'utf8' },
+    ).trim()
+    return k.length > 0 ? k : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * AI triage pass: re-judge the heuristic Threads bucket and move anything
+ * the model says is not personal to its correct surface. This is what makes
+ * the home show only real correspondence.
+ */
+async function applyTriage(
+  provider: AnthropicProvider,
+  buckets: Record<string, Card[]>,
+): Promise<void> {
+  const threads = buckets['threads']
+  if (threads === undefined || threads.length === 0) return
+  const inputs: TriageInput[] = threads.map((c) => ({
+    fromName: c.fromName,
+    fromAddress: c.fromAddress,
+    subject: c.subject,
+    snippet: '',
+    heuristicCategory: 'personal',
+  }))
+  const results = await provider.triage(inputs)
+  const byIndex = new Map(results.map((r) => [r.index, r]))
+  const kept: Card[] = []
+  for (let i = 0; i < threads.length; i++) {
+    const card = threads[i]
+    if (card === undefined) continue
+    const r = byIndex.get(i)
+    const target = r === undefined ? 'threads' : surfaceFor(r.category)
+    if (r === undefined || target === 'threads') {
+      kept.push(card)
+      continue
+    }
+    card.category = r.category
+    buckets[target]?.push(card)
+  }
+  buckets['threads'] = kept
+}
+
 async function snapshotAccount(
   cfg: AccountConfig,
+  triageProvider?: AnthropicProvider,
 ): Promise<Record<string, { total: number; items: Card[] }>> {
   const account: Account = {
     id: newAccountId(),
@@ -148,6 +201,9 @@ async function snapshotAccount(
   } finally {
     await connection.close()
   }
+  if (triageProvider !== undefined) {
+    await applyTriage(triageProvider, buckets)
+  }
   return Object.fromEntries(
     Object.entries(buckets).map(([s, cards]) => [
       s,
@@ -163,6 +219,9 @@ const dir = fileURLToPath(new URL('../../../../apps/web/app/canvas/', import.met
 
 describe.skipIf(!ENABLED)('inbox snapshot', () => {
   it('writes a multi-account, Space-mapped snapshot via the Gmail API', async () => {
+    const key = anthropicKey()
+    const triage = key !== undefined ? new AnthropicProvider({ apiKey: key }) : undefined
+    console.log(triage !== undefined ? '  AI triage: on' : '  AI triage: off (no key)')
     const spaces = []
     for (const cfg of ACCOUNTS) {
       if (!hasCreds(cfg.account)) {
@@ -170,7 +229,7 @@ describe.skipIf(!ENABLED)('inbox snapshot', () => {
         continue
       }
       try {
-        const surfaces = await snapshotAccount(cfg)
+        const surfaces = await snapshotAccount(cfg, triage)
         spaces.push({
           id: cfg.spaceId,
           name: cfg.name,
