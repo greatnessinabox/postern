@@ -129,7 +129,11 @@ function headerValue(headers: readonly GmailHeader[], name: string): string | un
 
 function parseAddress(raw: string): EmailAddress {
   const trimmed = raw.trim()
-  const angle = trimmed.match(/^(.*)<([^>]+)>\s*$/)
+  // Allow a trailing RFC 5322 comment after the angle brackets, e.g.
+  // `Bob <bob@x.com> (work)`. Without this the whole value falls through to
+  // a naive @-split and produces a garbage address, which would split the
+  // same sender into a second Handle versus the IMAP path.
+  const angle = trimmed.match(/^(.*)<([^>]+)>\s*(?:\([^)]*\)\s*)?$/)
   const displayRaw = angle?.[1]?.trim() ?? ''
   const addressRaw = angle?.[2]?.trim() ?? trimmed
   const display = displayRaw.replace(/^"(.*)"$/, '$1').trim()
@@ -279,7 +283,7 @@ function buildRequest(accessToken: string): GmailFetch {
  * after:YYYY/MM/DD (Gmail's date filter is day-granular). With no cursor, fall
  * back to a fixed lookback so the first sync doesn't pull the whole mailbox.
  */
-function recencyClause(cursor: SyncCursor | undefined): string {
+export function recencyClause(cursor: SyncCursor | undefined): string {
   if (cursor !== undefined) {
     const d = cursor.lastSyncedAt
     const y = d.getFullYear()
@@ -294,7 +298,7 @@ function recencyClause(cursor: SyncCursor | undefined): string {
  * The label clause for a folder. INBOX reads better as in:inbox; everything
  * else filters by label id, which Gmail accepts in label: alongside names.
  */
-function labelClause(folder: Folder): string {
+export function labelClause(folder: Folder): string {
   if (folder.path === 'INBOX') return 'in:inbox'
   return `label:${folder.path}`
 }

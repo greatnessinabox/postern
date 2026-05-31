@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gmailMetadataToParsed } from '../gmail.ts'
+import { gmailMetadataToParsed, labelClause, recencyClause, roleFromLabel } from '../gmail.ts'
 
 interface Header {
   readonly name: string
@@ -104,5 +104,44 @@ describe('gmailMetadataToParsed', () => {
     const before = Date.now()
     const msg = gmailMetadataToParsed([header('From', 'a@b.com')], '', '')
     expect(msg.date.getTime()).toBeGreaterThanOrEqual(before)
+  })
+
+  it('parses an address with a trailing RFC comment after the brackets', () => {
+    const msg = gmailMetadataToParsed([header('From', 'Bob <bob@x.com> (work)')], '', SENT_AT)
+    expect(msg.from).toEqual({ local: 'bob', domain: 'x.com', displayName: 'Bob' })
+  })
+
+  it('falls back to a sentinel address when From is missing or unparseable', () => {
+    const msg = gmailMetadataToParsed([], '', SENT_AT)
+    expect(msg.from).toEqual({ local: 'unknown', domain: 'invalid' })
+  })
+})
+
+describe('roleFromLabel', () => {
+  it('maps Gmail system labels to roles', () => {
+    expect(roleFromLabel('INBOX', 'system')).toBe('inbox')
+    expect(roleFromLabel('SENT', 'system')).toBe('sent')
+    expect(roleFromLabel('DRAFT', 'system')).toBe('drafts')
+    expect(roleFromLabel('TRASH', 'system')).toBe('trash')
+    expect(roleFromLabel('SPAM', 'system')).toBe('spam')
+    expect(roleFromLabel('ALL', 'system')).toBe('archive')
+  })
+  it('treats category tabs and user labels as other', () => {
+    expect(roleFromLabel('CATEGORY_PROMOTIONS', 'system')).toBe('other')
+    expect(roleFromLabel('Label_42', 'user')).toBe('other')
+    expect(roleFromLabel('INBOX', undefined)).toBe('other')
+  })
+})
+
+describe('Gmail query clauses', () => {
+  it('uses in:inbox for the inbox and label: for others', () => {
+    expect(labelClause({ name: 'Inbox', path: 'INBOX', role: 'inbox' })).toBe('in:inbox')
+    expect(labelClause({ name: 'Work', path: 'Label_7', role: 'other' })).toBe('label:Label_7')
+  })
+  it('builds an after: clause from the cursor and a lookback otherwise', () => {
+    expect(recencyClause({ folder: 'INBOX', lastSyncedAt: new Date(2026, 4, 9, 12) })).toBe(
+      'after:2026/05/09',
+    )
+    expect(recencyClause(undefined)).toMatch(/^newer_than:\d+d$/)
   })
 })
