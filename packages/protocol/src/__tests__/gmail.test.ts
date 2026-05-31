@@ -1,5 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { gmailMetadataToParsed, labelClause, recencyClause, roleFromLabel } from '../gmail.ts'
+import {
+  buildRawMessage,
+  gmailMetadataToParsed,
+  labelClause,
+  recencyClause,
+  roleFromLabel,
+} from '../gmail.ts'
+import type { Draft } from '../index.ts'
+
+function draft(over: Partial<Draft>): Draft {
+  return {
+    subject: 'Hello',
+    toAddresses: ['sarah@example.com'],
+    ccAddresses: [],
+    bccAddresses: [],
+    body: 'Hi there.',
+    attachmentRefs: [],
+    ...over,
+  }
+}
+
+function bodyOf(raw: string): string {
+  const blank = raw.indexOf('\r\n\r\n')
+  const b64 = raw.slice(blank + 4).replace(/\r\n/g, '')
+  return Buffer.from(b64, 'base64').toString('utf8')
+}
 
 interface Header {
   readonly name: string
@@ -130,6 +155,44 @@ describe('roleFromLabel', () => {
     expect(roleFromLabel('CATEGORY_PROMOTIONS', 'system')).toBe('other')
     expect(roleFromLabel('Label_42', 'user')).toBe('other')
     expect(roleFromLabel('INBOX', undefined)).toBe('other')
+  })
+})
+
+describe('buildRawMessage', () => {
+  const FROM = 'marquis@cleverer.tech'
+  const MID = '<mid-1@cleverer.tech>'
+
+  it('builds From/To/Subject/Message-ID and a decodable body', () => {
+    const raw = buildRawMessage(FROM, draft({ subject: 'Lunch', body: 'See you at noon.' }), MID)
+    expect(raw).toContain('From: marquis@cleverer.tech')
+    expect(raw).toContain('To: sarah@example.com')
+    expect(raw).toContain('Subject: Lunch')
+    expect(raw).toContain('Message-ID: <mid-1@cleverer.tech>')
+    expect(raw).toContain('Content-Type: text/plain; charset=utf-8')
+    expect(bodyOf(raw)).toBe('See you at noon.')
+  })
+
+  it('adds In-Reply-To and References for a reply', () => {
+    const raw = buildRawMessage(
+      FROM,
+      draft({ subject: 'Re: Plan', inReplyTo: '<orig@example.com>' }),
+      MID,
+    )
+    expect(raw).toContain('In-Reply-To: <orig@example.com>')
+    expect(raw).toContain('References: <orig@example.com>')
+  })
+
+  it('includes Cc and Bcc only when present', () => {
+    const withCc = buildRawMessage(FROM, draft({ ccAddresses: ['a@x.com'], bccAddresses: [] }), MID)
+    expect(withCc).toContain('Cc: a@x.com')
+    expect(withCc).not.toContain('Bcc:')
+  })
+
+  it('RFC 2047 encodes a non-ASCII subject and preserves a unicode body', () => {
+    const raw = buildRawMessage(FROM, draft({ subject: 'Café ☕', body: 'résumé 🎉' }), MID)
+    expect(raw).toContain('Subject: =?utf-8?B?')
+    expect(raw).not.toContain('Subject: Café')
+    expect(bodyOf(raw)).toBe('résumé 🎉')
   })
 })
 

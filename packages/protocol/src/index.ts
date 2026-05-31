@@ -11,6 +11,7 @@ import type { Account, Message, PartId, ThreadId } from '@postern/core'
 import type { ParsedMessage } from './mime.ts'
 
 export {
+  buildRawMessage,
   GmailAdapter,
   gmailMetadataToParsed,
   labelClause,

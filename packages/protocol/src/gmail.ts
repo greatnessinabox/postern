@@ -10,6 +10,7 @@
  * fresh one so a connection never carries an expired token.
  */
 
+import { randomUUID } from 'node:crypto'
 import type { Account, EmailAddress, Message } from '@postern/core'
 import { classifyMessage } from '@postern/core'
 import type { CredentialResolver } from './imap.ts'
@@ -78,10 +79,17 @@ interface GmailLabelsResponse {
   readonly labels?: readonly GmailLabel[]
 }
 
-type GmailFetch = (path: string) => Promise<unknown>
+interface GmailRequestInit {
+  readonly method: string
+  readonly body: string
+  readonly contentType: string
+}
+
+type GmailFetch = (path: string, init?: GmailRequestInit) => Promise<unknown>
 
 interface GmailConnection extends Connection {
   readonly request: GmailFetch
+  readonly address: string
 }
 
 function isGmailConnection(connection: Connection): connection is GmailConnection {
@@ -261,9 +269,14 @@ function isLabelsResponse(value: unknown): value is GmailLabelsResponse {
 }
 
 function buildRequest(accessToken: string): GmailFetch {
-  return async (path: string): Promise<unknown> => {
+  return async (path: string, init?: GmailRequestInit): Promise<unknown> => {
     const res = await fetch(`${API_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      method: init?.method ?? 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(init !== undefined ? { 'Content-Type': init.contentType } : {}),
+      },
+      ...(init !== undefined ? { body: init.body } : {}),
     })
     if (!res.ok) {
       const body = await res.text()
@@ -322,6 +335,7 @@ export class GmailAdapter implements ProtocolAdapter {
     const request = buildRequest(credential.accessToken)
     const connection: GmailConnection = {
       accountId: account.id,
+      address: account.address,
       request,
       close() {
         // Stateless REST. Nothing to tear down.
@@ -400,13 +414,50 @@ export class GmailAdapter implements ProtocolAdapter {
     return bodies
   }
 
-  send(_connection: Connection, _draft: Draft): Promise<Message['messageIdHeader']> {
-    // Gmail's send endpoint (messages.send) is a separate concern from this read
-    // adapter, same split as IMAP/SMTP. TODO(send): wire it once the outbox lands.
-    return Promise.reject(
-      new Error(
-        'GmailAdapter does not send; the Gmail send API is a separate concern. TODO: wire messages.send.',
-      ),
-    )
+  async send(connection: Connection, draft: Draft): Promise<Message['messageIdHeader']> {
+    if (!isGmailConnection(connection)) {
+      throw new Error('Connection was not created by GmailAdapter.connect')
+    }
+    const domain = parseAddress(connection.address).domain || 'localhost'
+    const messageId = `<${randomUUID()}@${domain}>`
+    const raw = buildRawMessage(connection.address, draft, messageId)
+    const encoded = Buffer.from(raw, 'utf8').toString('base64url')
+    await connection.request('/messages/send', {
+      method: 'POST',
+      contentType: 'application/json',
+      body: JSON.stringify({ raw: encoded }),
+    })
+    return messageId
   }
+}
+
+// RFC 2047 encoded-word for a non-ASCII header value; ASCII passes through.
+function encodeHeaderWord(value: string): string {
+  if (/^[\x20-\x7e]*$/.test(value)) return value
+  return `=?utf-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`
+}
+
+/**
+ * Build an RFC 5322 message from a Draft. Plain text body, base64-encoded so
+ * any UTF-8 is safe. In-Reply-To and References thread a reply. The Message-ID
+ * is passed in so the caller can return it and the function stays pure.
+ * Attachments and HTML bodies land in a later phase.
+ */
+export function buildRawMessage(from: string, draft: Draft, messageId: string): string {
+  const lines: string[] = [`From: ${from}`, `To: ${draft.toAddresses.join(', ')}`]
+  if (draft.ccAddresses.length > 0) lines.push(`Cc: ${draft.ccAddresses.join(', ')}`)
+  if (draft.bccAddresses.length > 0) lines.push(`Bcc: ${draft.bccAddresses.join(', ')}`)
+  lines.push(`Subject: ${encodeHeaderWord(draft.subject)}`)
+  lines.push(`Message-ID: ${messageId}`)
+  if (draft.inReplyTo !== undefined && draft.inReplyTo.length > 0) {
+    lines.push(`In-Reply-To: ${draft.inReplyTo}`)
+    lines.push(`References: ${draft.inReplyTo}`)
+  }
+  lines.push('MIME-Version: 1.0')
+  lines.push('Content-Type: text/plain; charset=utf-8')
+  lines.push('Content-Transfer-Encoding: base64')
+  lines.push('')
+  const b64 = Buffer.from(draft.body, 'utf8').toString('base64')
+  lines.push(b64.match(/.{1,76}/g)?.join('\r\n') ?? b64)
+  return lines.join('\r\n')
 }
