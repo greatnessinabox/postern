@@ -67,9 +67,11 @@ const SOCIAL_DOMAINS = [
   'nextdoor.co.uk',
 ]
 
-// Local-parts that only ever belong to a machine or a brand mailbox.
+// Local-parts that only ever belong to a machine or a brand mailbox. The
+// trailing (?![a-z]) stops a token from matching a longer human name:
+// "news" must not swallow "newsom", "care" must not swallow "carey".
 const AUTOMATED_LOCAL =
-  /^(no-?reply|do-?not-?reply|donotreply|noreply|notifications?|mailer|automated|auto|bounce|postmaster|transactions?|receipts?|billing|invoices?|orders?|offers?|deals?|news|account|feedback|customer-?service|customer-?care|express|care)/
+  /^(no-?reply|do-?not-?reply|donotreply|noreply|notifications?|mailer|automated|auto|bounce|postmaster|transactions?|receipts?|billing|invoices?|orders?|offers?|deals?|news|account|feedback|customer-?service|customer-?care|express|care)(?![a-z])/
 
 const TRANSACTIONAL_SUBJECT =
   /receipt|order\b|order #|invoice|payment|statement|your bill|shipped|delivered|out for delivery|delivery|tracking|confirmation|refund|transaction|membership|subscription|appointment|\bappt\b|reservation|reminder for your|(your|review your|review this) (order|purchase|booking|reservation|ticket|review)|your review/i
@@ -104,8 +106,15 @@ export function classifyMessage(s: ClassificationSignals): MessageClassification
     return 'newsletter'
   }
 
+  // For bulk mail, the subject decides: a deal is promotional, an order or
+  // shipping confirmation that happens to carry List-Unsubscribe is
+  // transactional (Ledger, not Reader), everything else is a newsletter.
+  // The sender local-part (news@, offers@) does not override this; those
+  // are newsletter senders.
   if (bulk) {
-    return PROMO_SUBJECT.test(subject) ? 'promotional' : 'newsletter'
+    if (PROMO_SUBJECT.test(subject)) return 'promotional'
+    if (TRANSACTIONAL_SUBJECT.test(subject)) return 'transactional'
+    return 'newsletter'
   }
 
   if (automated || AUTOMATED_LOCAL.test(local) || TRANSACTIONAL_SUBJECT.test(subject)) {

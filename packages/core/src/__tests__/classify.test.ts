@@ -138,6 +138,36 @@ const cases: ReadonlyArray<[string, ClassificationSignals, MessageClassification
     'transactional',
   ],
   [
+    'A person named Carey is not "care" automated',
+    signals({ fromLocal: 'carey', fromDomain: 'gmail.com', subject: 'lunch next week?' }),
+    'personal',
+  ],
+  [
+    'A person named Newsom is not "news" automated',
+    signals({ fromLocal: 'newsom', fromDomain: 'gmail.com', subject: 'the proposal' }),
+    'personal',
+  ],
+  [
+    'Brand order confirmation with List-Unsubscribe goes to Ledger not Reader',
+    signals({
+      fromLocal: 'orders',
+      fromDomain: 'shop.example.com',
+      subject: 'Your order has shipped',
+      hasListUnsubscribe: true,
+    }),
+    'transactional',
+  ],
+  [
+    'A news@ newsletter with an unsubscribe stays a newsletter',
+    signals({
+      fromLocal: 'news',
+      fromDomain: 'em.publication.com',
+      subject: 'This week in tech',
+      hasListUnsubscribe: true,
+    }),
+    'newsletter',
+  ],
+  [
     'A real human reply',
     signals({
       fromLocal: 'sarah',
