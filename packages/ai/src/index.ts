@@ -11,6 +11,15 @@
 
 import type { Message, MessageClassification, SpaceId, Thread } from '@postern/core'
 
+export { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.ts'
+export {
+  buildTriageUserPrompt,
+  parseTriageResponse,
+  TRIAGE_SYSTEM,
+  type TriageInput,
+  type TriageResult,
+} from './triage.ts'
+
 export interface DraftContext {
   readonly thread: Thread
   readonly recentMessages: readonly Message[]
