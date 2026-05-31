@@ -1,9 +1,8 @@
 import type { Card } from './snapshot'
-import { accentFor, formatDate } from './surfaces'
+import { formatDate } from './surfaces'
 import { TrustGlyph } from './TrustGlyph'
 
-function ThreadCard({ card, yourTurn }: { card: Card; yourTurn: boolean }) {
-  const accent = accentFor('threads')
+function ThreadCard({ card, yourTurn, accent }: { card: Card; yourTurn: boolean; accent: string }) {
   return (
     <article className="tile shadow-tile relative flex min-h-[200px] flex-col rounded-md border border-ink/10 bg-parchment">
       <span
@@ -35,7 +34,7 @@ function ThreadCard({ card, yourTurn }: { card: Card; yourTurn: boolean }) {
   )
 }
 
-export function ThreadsSurface({ items }: { items: Card[] }) {
+export function ThreadsSurface({ items, accent }: { items: Card[]; accent: string }) {
   const ordered = [...items].sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
   const newestDate = ordered[0]?.date
 
@@ -47,6 +46,7 @@ export function ThreadsSurface({ items }: { items: Card[] }) {
             key={`${card.fromAddress}-${card.date}-${card.subject}`}
             card={card}
             yourTurn={card.date === newestDate}
+            accent={accent}
           />
         ))}
       </div>

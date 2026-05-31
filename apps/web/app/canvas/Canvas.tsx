@@ -5,11 +5,9 @@ import { LedgerSurface } from './LedgerSurface'
 import { NotificationsSurface } from './NotificationsSurface'
 import { ReaderSurface } from './ReaderSurface'
 import { Sidebar } from './Sidebar'
-import type { Snapshot, SurfaceId } from './snapshot'
+import type { Snapshot, Space, SurfaceId } from './snapshot'
 import { SURFACES } from './surfaces'
 import { ThreadsSurface } from './ThreadsSurface'
-
-const SURFACE_BY_INDEX: SurfaceId[] = ['threads', 'reader', 'notifications', 'ledger']
 
 const HEADERS: Record<SurfaceId, { title: string; blurb: string }> = {
   threads: { title: 'Threads', blurb: 'Active correspondence. The noise is routed away.' },
@@ -18,42 +16,92 @@ const HEADERS: Record<SurfaceId, { title: string; blurb: string }> = {
   ledger: { title: 'Ledger', blurb: 'Receipts, orders, and shipping.' },
 }
 
+const EMPTY: Record<SurfaceId, string> = {
+  threads: 'Nothing active here.',
+  reader: 'Nothing to read here.',
+  notifications: 'No alerts here.',
+  ledger: 'No receipts here.',
+}
+
+function firstSpaceId(spaces: Space[]): string {
+  return spaces[0]?.id ?? ''
+}
+
 export function Canvas({ snapshot }: { snapshot: Snapshot }) {
-  const [active, setActive] = useState<SurfaceId>('threads')
+  const { spaces } = snapshot
+  const [activeSpaceId, setActiveSpaceId] = useState<string>(() => firstSpaceId(spaces))
+  const [activeSurface, setActiveSurface] = useState<SurfaceId>('threads')
 
-  const counts = useMemo(() => {
-    const result = {} as Record<SurfaceId, number>
-    for (const surface of SURFACES) {
-      result[surface.id] = snapshot.surfaces[surface.id].total
-    }
-    return result
-  }, [snapshot])
+  const activeSpace = useMemo(
+    () => spaces.find((space) => space.id === activeSpaceId) ?? spaces[0],
+    [spaces, activeSpaceId],
+  )
 
-  const handleKey = useCallback((event: KeyboardEvent) => {
-    if (!event.metaKey && !event.ctrlKey) {
-      return
-    }
-    const index = Number.parseInt(event.key, 10) - 1
-    const target = SURFACE_BY_INDEX[index]
-    if (target) {
-      event.preventDefault()
-      setActive(target)
-    }
-  }, [])
+  const handleKey = useCallback(
+    (event: KeyboardEvent) => {
+      if (!event.metaKey && !event.ctrlKey) {
+        return
+      }
+      const index = Number.parseInt(event.key, 10) - 1
+      const target = spaces[index]
+      if (target) {
+        event.preventDefault()
+        setActiveSpaceId(target.id)
+      }
+    },
+    [spaces],
+  )
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [handleKey])
 
-  const surface = snapshot.surfaces[active]
-  const header = HEADERS[active]
+  if (!activeSpace) {
+    return null
+  }
+
+  const accent = activeSpace.accent
+  const surface = activeSpace.surfaces[activeSurface]
+  const header = HEADERS[activeSurface]
+  const isEmpty = surface.items.length === 0
 
   return (
     <div className="flex">
-      <Sidebar active={active} counts={counts} onSelect={setActive} account={snapshot.account} />
+      <Sidebar
+        spaces={spaces}
+        activeSpaceId={activeSpace.id}
+        onSelect={setActiveSpaceId}
+        account={activeSpace.account}
+      />
 
       <main className="paper-grain min-h-[640px] flex-1 px-8 py-6">
+        <nav className="mb-5 flex items-center gap-1 border-b border-ink/10 pb-3">
+          {SURFACES.map((meta) => {
+            const isActive = meta.id === activeSurface
+            const total = activeSpace.surfaces[meta.id].total
+            return (
+              <button
+                key={meta.id}
+                type="button"
+                onClick={() => setActiveSurface(meta.id)}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] transition-colors ${
+                  isActive ? 'font-medium' : 'text-ink-faint hover:text-ink-soft'
+                }`}
+                style={isActive ? { color: accent, background: `${accent}12` } : undefined}
+              >
+                {meta.name}
+                <span
+                  className="text-[10.5px] tabular-nums"
+                  style={isActive ? { color: accent } : undefined}
+                >
+                  {total}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+
         <div className="mb-6 flex items-baseline justify-between">
           <div>
             <h1 className="font-serif text-[28px] leading-none font-normal text-ink">
@@ -64,10 +112,20 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
           <div className="text-[11px] text-ink-faint tabular-nums">{surface.total} total</div>
         </div>
 
-        {active === 'threads' ? <ThreadsSurface items={surface.items} /> : null}
-        {active === 'reader' ? <ReaderSurface items={surface.items} /> : null}
-        {active === 'notifications' ? <NotificationsSurface items={surface.items} /> : null}
-        {active === 'ledger' ? <LedgerSurface items={surface.items} /> : null}
+        {isEmpty ? (
+          <p className="text-[13px] text-ink-faint">{EMPTY[activeSurface]}</p>
+        ) : (
+          <>
+            {activeSurface === 'threads' ? (
+              <ThreadsSurface items={surface.items} accent={accent} />
+            ) : null}
+            {activeSurface === 'reader' ? <ReaderSurface items={surface.items} /> : null}
+            {activeSurface === 'notifications' ? (
+              <NotificationsSurface items={surface.items} />
+            ) : null}
+            {activeSurface === 'ledger' ? <LedgerSurface items={surface.items} /> : null}
+          </>
+        )}
       </main>
     </div>
   )

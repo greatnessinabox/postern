@@ -3,20 +3,14 @@ import type { Card, SurfaceId } from './snapshot'
 export interface SurfaceMeta {
   id: SurfaceId
   name: string
-  shortcut: string
-  accent: string
 }
 
 export const SURFACES: SurfaceMeta[] = [
-  { id: 'threads', name: 'Threads', shortcut: '⌘1', accent: 'var(--color-slate-space)' },
-  { id: 'reader', name: 'Reader', shortcut: '⌘2', accent: 'var(--color-brass)' },
-  { id: 'notifications', name: 'Notifications', shortcut: '⌘3', accent: 'var(--color-clay-space)' },
-  { id: 'ledger', name: 'Ledger', shortcut: '⌘4', accent: 'var(--color-ink-soft)' },
+  { id: 'threads', name: 'Threads' },
+  { id: 'reader', name: 'Reader' },
+  { id: 'notifications', name: 'Notifications' },
+  { id: 'ledger', name: 'Ledger' },
 ]
-
-export function accentFor(surface: SurfaceId): string {
-  return SURFACES.find((s) => s.id === surface)?.accent ?? 'var(--color-slate-space)'
-}
 
 export function formatDate(iso: string): string {
   const date = new Date(iso)
