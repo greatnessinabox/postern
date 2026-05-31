@@ -2,24 +2,25 @@
  * Generates a multi-account, Space-mapped inbox snapshot for the web
  * canvas. Opt-in: RUN_SNAPSHOT=1 pnpm test:integration
  *
- * One account per Space. For each account with credentials in the keychain
- * (run scripts/oauth-token.mjs --store per account), it fetches recent mail
- * via the fast envelope+headers path, classifies with the shipped
- * classifier, scores trust, collapses same-subject threads, and buckets by
- * surface. Accounts without creds are skipped, so this works with one or
- * three accounts. Writes apps/web/app/canvas/snapshot.json (gitignored).
+ * Uses the Gmail REST adapter (GmailAdapter), which works for consumer and
+ * Workspace Gmail regardless of the IMAP toggle. One account per Space. For
+ * each account with credentials in the keychain (run scripts/oauth-token.mjs
+ * --store per account), it fetches recent mail (envelope-first via the Gmail
+ * metadata endpoint, already classified + trust-scored by the adapter),
+ * collapses same-subject threads, and buckets by surface. Accounts that fail
+ * (no creds, API blocked) are skipped. Writes apps/web/app/canvas/snapshot.json
+ * (gitignored).
  */
 
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { classifyMessage, surfaceFor } from '@postern/core'
-import { ImapFlow } from 'imapflow'
+import { type Account, newAccountId, surfaceFor } from '@postern/core'
 import { describe, expect, it } from 'vitest'
-import { summarizeTrust } from '../trust.ts'
+import { GmailAdapter } from '../gmail.ts'
 
 const ENABLED = process.env['RUN_SNAPSHOT'] === '1'
-const FETCH = Number(process.env['SNAPSHOT_FETCH'] ?? '300')
+const FETCH = Number(process.env['SNAPSHOT_FETCH'] ?? '150')
 const PER_SURFACE = 16
 
 interface AccountConfig {
@@ -62,14 +63,20 @@ function hasCreds(account: string): boolean {
   }
 }
 
-function parseHeaders(buf: Buffer | undefined): Map<string, string> {
-  const map = new Map<string, string>()
-  if (buf === undefined) return map
-  for (const line of buf.toString().split(/\r?\n/)) {
-    const i = line.indexOf(':')
-    if (i > 0) map.set(line.slice(0, i).trim().toLowerCase(), line.slice(i + 1).trim())
-  }
-  return map
+async function accessToken(account: string): Promise<string> {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: kc('postern-gmail-client-id', account),
+      client_secret: kc('postern-gmail-client-secret', account),
+      refresh_token: kc('postern-gmail-refresh', account),
+      grant_type: 'refresh_token',
+    }),
+  })
+  const json = (await res.json()) as { access_token?: string }
+  if (json.access_token === undefined) throw new Error(`No access token for ${account}`)
+  return json.access_token
 }
 
 interface Card {
@@ -88,34 +95,22 @@ const norm = (s: string) =>
     .trim()
     .toLowerCase()
 
-async function accessToken(account: string): Promise<string> {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: kc('postern-gmail-client-id', account),
-      client_secret: kc('postern-gmail-client-secret', account),
-      refresh_token: kc('postern-gmail-refresh', account),
-      grant_type: 'refresh_token',
-    }),
-  })
-  const json = (await res.json()) as { access_token?: string }
-  if (json.access_token === undefined) throw new Error(`No access token for ${account}`)
-  return json.access_token
-}
-
 async function snapshotAccount(
-  account: string,
+  cfg: AccountConfig,
 ): Promise<Record<string, { total: number; items: Card[] }>> {
-  const client = new ImapFlow({
-    host: 'imap.gmail.com',
-    port: 993,
-    secure: true,
-    auth: { user: account, accessToken: await accessToken(account) },
-    logger: false,
-  })
-  await client.connect()
-  const lock = await client.getMailboxLock('INBOX', { readOnly: true })
+  const account: Account = {
+    id: newAccountId(),
+    provider: 'gmail',
+    address: cfg.account,
+    displayName: cfg.name,
+    spaceIds: [],
+    createdAt: new Date(),
+  }
+  const adapter = new GmailAdapter(async () => ({
+    kind: 'oauth',
+    accessToken: await accessToken(cfg.account),
+  }))
+  const connection = await adapter.connect(account)
   const buckets: Record<string, Card[]> = { threads: [], reader: [], notifications: [], ledger: [] }
   const seen: Record<string, Set<string>> = {
     threads: new Set(),
@@ -124,69 +119,34 @@ async function snapshotAccount(
     ledger: new Set(),
   }
   try {
-    const mailbox = client.mailbox
-    if (mailbox === false) throw new Error('INBOX did not open')
-    const start = Math.max(1, mailbox.exists - FETCH + 1)
-    for await (const m of client.fetch(`${start}:*`, {
-      envelope: true,
-      headers: [
-        'list-unsubscribe',
-        'list-id',
-        'precedence',
-        'auto-submitted',
-        'x-github-event',
-        'authentication-results',
-        'received-spf',
-        'dkim-signature',
-      ],
-    })) {
-      const env = m.envelope
-      if (env === undefined) continue
-      const h = parseHeaders(m.headers)
-      const fromEntry = env.from?.[0]
-      const addr = (fromEntry?.address ?? '').toLowerCase()
-      const at = addr.indexOf('@')
-      const subject = env.subject ?? '(no subject)'
-      const category = classifyMessage({
-        fromLocal: at >= 0 ? addr.slice(0, at) : addr,
-        fromDomain: at >= 0 ? addr.slice(at + 1) : '',
-        subject,
-        hasListUnsubscribe: h.has('list-unsubscribe'),
-        hasListId: h.has('list-id'),
-        precedence: h.get('precedence') ?? '',
-        autoSubmitted: h.get('auto-submitted') ?? '',
-        hasGithubEventHeader: h.has('x-github-event'),
-      })
-      const surface = surfaceFor(category)
+    const folders = await adapter.listFolders(connection)
+    const inbox = folders.find((f) => f.role === 'inbox') ?? folders[0]
+    if (inbox === undefined) throw new Error('no inbox folder')
+    const delta = await adapter.fetchSince(connection, inbox, undefined, FETCH)
+    for (const m of delta.messages) {
+      const surface = surfaceFor(m.classification)
       const bucket = buckets[surface]
       const seenKeys = seen[surface]
       if (bucket === undefined || seenKeys === undefined) continue
-      const key = norm(subject)
+      const key = norm(m.subject)
       if (seenKeys.has(key)) {
         const existing = bucket.find((c) => norm(c.subject) === key)
         if (existing !== undefined) existing.messageCount += 1
         continue
       }
       seenKeys.add(key)
-      const authResults = h.get('authentication-results')
-      const trust = summarizeTrust({
-        authenticationResults: authResults !== undefined ? [authResults] : [],
-        hasDkimSignature: h.has('dkim-signature'),
-        ...(h.has('received-spf') ? { receivedSpf: h.get('received-spf') ?? '' } : {}),
-      })
       bucket.push({
-        subject,
-        fromName: fromEntry?.name ?? '',
-        fromAddress: addr,
-        date: (env.date ?? new Date(0)).toISOString(),
-        category,
-        trust: trust.verdict,
+        subject: m.subject || '(no subject)',
+        fromName: m.from.displayName ?? '',
+        fromAddress: `${m.from.local}@${m.from.domain}`,
+        date: m.date.toISOString(),
+        category: m.classification,
+        trust: m.trust.verdict,
         messageCount: 1,
       })
     }
   } finally {
-    lock.release()
-    await client.logout()
+    await connection.close()
   }
   return Object.fromEntries(
     Object.entries(buckets).map(([s, cards]) => [
@@ -202,7 +162,7 @@ async function snapshotAccount(
 const dir = fileURLToPath(new URL('../../../../apps/web/app/canvas/', import.meta.url))
 
 describe.skipIf(!ENABLED)('inbox snapshot', () => {
-  it('writes a multi-account, Space-mapped snapshot', async () => {
+  it('writes a multi-account, Space-mapped snapshot via the Gmail API', async () => {
     const spaces = []
     for (const cfg of ACCOUNTS) {
       if (!hasCreds(cfg.account)) {
@@ -210,7 +170,7 @@ describe.skipIf(!ENABLED)('inbox snapshot', () => {
         continue
       }
       try {
-        const surfaces = await snapshotAccount(cfg.account)
+        const surfaces = await snapshotAccount(cfg)
         spaces.push({
           id: cfg.spaceId,
           name: cfg.name,
@@ -224,8 +184,6 @@ describe.skipIf(!ENABLED)('inbox snapshot', () => {
           .join(' ')
         console.log(`  ${cfg.name.padEnd(14)} ${cfg.account.padEnd(28)} ${totals}`)
       } catch (err) {
-        // One account failing (e.g. Workspace IMAP disabled) must not kill the
-        // whole snapshot. Skip it and keep the others.
         const reason = err instanceof Error ? err.message : String(err)
         console.log(`  skip ${cfg.account} (fetch failed: ${reason})`)
       }
@@ -236,5 +194,5 @@ describe.skipIf(!ENABLED)('inbox snapshot', () => {
     writeFileSync(`${dir}snapshot.json`, `${JSON.stringify(snapshot, null, 2)}\n`)
     console.log(`\n${spaces.length} Space(s) written.`)
     expect(spaces.length).toBeGreaterThan(0)
-  }, 120_000)
+  }, 180_000)
 })
