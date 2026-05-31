@@ -209,19 +209,26 @@ describe.skipIf(!ENABLED)('inbox snapshot', () => {
         console.log(`  skip ${cfg.account} (no keychain creds)`)
         continue
       }
-      const surfaces = await snapshotAccount(cfg.account)
-      spaces.push({
-        id: cfg.spaceId,
-        name: cfg.name,
-        account: cfg.account,
-        accent: cfg.accent,
-        glyph: cfg.glyph,
-        surfaces,
-      })
-      const totals = Object.entries(surfaces)
-        .map(([s, b]) => `${s}:${b.total}`)
-        .join(' ')
-      console.log(`  ${cfg.name.padEnd(14)} ${cfg.account.padEnd(28)} ${totals}`)
+      try {
+        const surfaces = await snapshotAccount(cfg.account)
+        spaces.push({
+          id: cfg.spaceId,
+          name: cfg.name,
+          account: cfg.account,
+          accent: cfg.accent,
+          glyph: cfg.glyph,
+          surfaces,
+        })
+        const totals = Object.entries(surfaces)
+          .map(([s, b]) => `${s}:${b.total}`)
+          .join(' ')
+        console.log(`  ${cfg.name.padEnd(14)} ${cfg.account.padEnd(28)} ${totals}`)
+      } catch (err) {
+        // One account failing (e.g. Workspace IMAP disabled) must not kill the
+        // whole snapshot. Skip it and keep the others.
+        const reason = err instanceof Error ? err.message : String(err)
+        console.log(`  skip ${cfg.account} (fetch failed: ${reason})`)
+      }
     }
 
     const snapshot = { generatedAt: new Date().toISOString(), spaces }
