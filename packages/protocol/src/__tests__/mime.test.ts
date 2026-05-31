@@ -101,4 +101,17 @@ describe('parseRawMessage', () => {
     expect(msg.from).toEqual({ local: 'billing', domain: 'stripe.com' })
     expect(msg.from.displayName).toBeUndefined()
   })
+
+  it('falls back to a sentinel address when From is missing', async () => {
+    const noFrom = [
+      'To: marquis@cleverer.tech',
+      'Subject: who sent this',
+      'Message-ID: <nofrom@example.com>',
+      'Date: Wed, 27 May 2026 14:30:00 +0000',
+      '',
+      'No From header.',
+    ].join('\r\n')
+    const msg = await parseRawMessage(noFrom)
+    expect(msg.from).toEqual({ local: 'unknown', domain: 'invalid' })
+  })
 })

@@ -167,18 +167,22 @@ async function fetchBodies(
   const sanitizer = createEmailSanitizer(
     new JSDOM('').window as unknown as Parameters<typeof createEmailSanitizer>[0],
   )
-  for (const card of cards.slice(0, PER_SURFACE)) {
-    if (card.messageIdHeader.length === 0) continue
-    try {
-      const parts = await adapter.fetchBody(connection, folder, card.messageIdHeader)
-      const html = parts.find((p) => p.includes('<')) ?? parts[0] ?? ''
-      const clean = sanitizer.sanitize(html, { blockRemoteContent: true })
-      card.bodyHtml = clean.html
-      card.blockedImages = clean.blockedRemoteCount
-    } catch {
-      // Body is best-effort; the tile still renders without it.
-    }
-  }
+  // Fetch in parallel (sanitize is synchronous, so the shared sanitizer is
+  // safe). The slice keeps the fan-out bounded to what the surface displays.
+  await Promise.all(
+    cards.slice(0, PER_SURFACE).map(async (card) => {
+      if (card.messageIdHeader.length === 0) return
+      try {
+        const parts = await adapter.fetchBody(connection, folder, card.messageIdHeader)
+        const html = parts.find((p) => p.includes('<')) ?? parts[0] ?? ''
+        const clean = sanitizer.sanitize(html, { blockRemoteContent: true })
+        card.bodyHtml = clean.html
+        card.blockedImages = clean.blockedRemoteCount
+      } catch {
+        // Body is best-effort; the tile still renders without it.
+      }
+    }),
+  )
 }
 
 async function snapshotAccount(
