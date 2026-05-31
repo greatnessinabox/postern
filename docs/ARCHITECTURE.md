@@ -73,11 +73,18 @@ export interface Account {
 export interface ImapConfig {
   readonly host: string
   readonly port: number
-  readonly tls: boolean
+  readonly security: 'tls' | 'starttls' | 'plain'
   readonly username: string
   readonly passwordRef: string
-  readonly smtpHost: string
-  readonly smtpPort: number
+}
+
+// SMTP is its own config, not inlined into ImapConfig.
+export interface SmtpConfig {
+  readonly host: string
+  readonly port: number
+  readonly security: 'tls' | 'starttls' | 'plain'
+  readonly username: string
+  readonly passwordRef: string
 }
 ```
 
@@ -196,13 +203,7 @@ A section of a Message. Text body, HTML body, attachment, inline image, signatur
 ```ts
 // packages/core/src/types/part.ts
 
-export type PartKind =
-  | 'text-plain'
-  | 'text-html'
-  | 'attachment'
-  | 'inline-image'
-  | 'signature'
-  | 'quoted-reply'
+export type PartKind = 'text' | 'html' | 'attachment' | 'inline-image' | 'signature'
 
 export interface Part {
   readonly id: PartId
@@ -310,112 +311,94 @@ The hard rules:
 - Adapter packages do not import from each other. The IMAP adapter does not know the JMAP adapter exists.
 - `packages/core` exposes typed functions. The view layer calls those functions and gets back primitive types. No raw protocol objects ever reach the UI.
 
-A lint rule in Biome enforces the imports. A violation fails CI.
+The dependency graph enforces this. Each app and `packages/ui` declares
+only `@postern/core` as a `@postern/*` dependency in its package.json, and
+pnpm's isolated `node_modules` means a package cannot import a workspace
+package it does not declare. So `apps/web` physically cannot resolve
+`@postern/protocol`. (A Biome `noRestrictedImports` rule scoped to `apps/**`
+would add a second, earlier signal; Biome overrides do not currently apply
+an added lint rule to a glob, so this is a tracked follow-up.)
 
 ## Protocol adapter contract
 
-Every mail protocol that Postern supports implements one interface. The interface is defined in `packages/protocol/src/adapter.ts`. The internal model is one step more abstract than JMAP: it speaks Threads, Messages, and Parts, with provider-specific terms (label, mailbox, folder) collapsed into a single Folder concept.
+Every mail protocol that Postern supports implements one interface, defined
+in `packages/protocol/src/index.ts`. Adapters produce the protocol-neutral
+`ParsedMessage` (envelope, parts, trust, classification); the ingestion
+layer in `packages/storage` assigns branded IDs and resolves Handles. The
+adapter never returns core `Message`/`Thread` objects directly, because
+those require IDs the adapter does not mint. Provider terms (Gmail label,
+IMAP mailbox) collapse into a single `Folder`.
 
 ```ts
-// packages/protocol/src/adapter.ts
+// packages/protocol/src/index.ts (current shape)
 
-import type {
-  Account,
-  Thread,
-  Message,
-  Part,
-  MessageId,
-  EmailAddress,
-} from '@postern/core'
+import type { Account, Message } from '@postern/core'
+import type { ParsedMessage } from './mime.ts'
 
 export interface Connection {
   readonly accountId: Account['id']
-  readonly provider: Account['provider']
-  readonly close: () => Promise<void>
-}
-
-export interface Folder {
-  readonly id: string
-  readonly path: string
-  readonly role: FolderRole
-  readonly providerType: 'label' | 'mailbox' | 'folder'
+  close(): Promise<void>
 }
 
 export type FolderRole =
-  | 'inbox'
-  | 'sent'
-  | 'drafts'
-  | 'trash'
-  | 'archive'
-  | 'spam'
-  | 'other'
+  | 'inbox' | 'sent' | 'drafts' | 'trash' | 'spam' | 'archive' | 'other'
 
-export interface Draft {
-  readonly accountId: Account['id']
-  readonly threadId?: Thread['id']
-  readonly to: readonly EmailAddress[]
-  readonly cc: readonly EmailAddress[]
-  readonly bcc: readonly EmailAddress[]
-  readonly subject: string
-  readonly body: string
-  readonly bodyHtml?: string
-  readonly attachments: readonly DraftAttachment[]
-}
-
-export interface DraftAttachment {
-  readonly filename: string
-  readonly contentType: string
-  readonly contentRef: string
+export interface Folder {
+  readonly name: string
+  readonly path: string
+  readonly role: FolderRole
+  readonly uidValidity?: number
+  readonly modseq?: number
 }
 
 export interface SyncCursor {
-  readonly folderId: string
-  readonly providerCursor: string
+  readonly folder: string
+  readonly lastUid?: number
+  readonly lastModseq?: number
   readonly lastSyncedAt: Date
 }
 
-export interface ProtocolAdapter {
-  connect(account: Account): Promise<Connection>
-  listFolders(connection: Connection): Promise<readonly Folder[]>
-  fetchThreads(
-    connection: Connection,
-    folder: Folder,
-    since: Date,
-  ): Promise<readonly Thread[]>
-  fetchMessages(
-    connection: Connection,
-    threadId: Thread['id'],
-  ): Promise<readonly Message[]>
-  fetchPart(
-    connection: Connection,
-    messageId: MessageId,
-    partId: Part['id'],
-  ): Promise<Uint8Array>
-  sendMessage(
-    connection: Connection,
-    draft: Draft,
-  ): Promise<MessageId>
-  markFlags(
-    connection: Connection,
-    messageId: MessageId,
-    add: readonly Message['flags'][number][],
-    remove: readonly Message['flags'][number][],
-  ): Promise<void>
-  syncIncremental(
-    connection: Connection,
-    cursor: SyncCursor,
-  ): Promise<SyncDelta>
+export interface SyncDelta {
+  readonly messages: readonly ParsedMessage[]
+  readonly cursor: SyncCursor
 }
 
-export interface SyncDelta {
-  readonly newMessages: readonly Message[]
-  readonly updatedThreads: readonly Thread[]
-  readonly deletedMessageIds: readonly MessageId[]
-  readonly nextCursor: SyncCursor
+export interface Draft {
+  readonly threadId?: ThreadId
+  readonly inReplyTo?: string
+  readonly subject: string
+  readonly toAddresses: readonly string[]
+  readonly ccAddresses: readonly string[]
+  readonly bccAddresses: readonly string[]
+  readonly body: string
+  readonly attachmentRefs: readonly PartId[]
+}
+
+export interface ProtocolAdapter {
+  readonly providerKind: Account['provider']
+  connect(account: Account): Promise<Connection>
+  listFolders(connection: Connection): Promise<readonly Folder[]>
+  fetchSince(
+    connection: Connection,
+    folder: Folder,
+    cursor?: SyncCursor,
+    limit?: number,
+  ): Promise<SyncDelta>
+  fetchBody(
+    connection: Connection,
+    folder: Folder,
+    messageIdHeader: string,
+  ): Promise<readonly string[]>
+  send(connection: Connection, draft: Draft): Promise<Message['messageIdHeader']>
 }
 ```
 
-Each protocol adapter implements this. The IMAP adapter wraps ImapFlow and converts UID, MODSEQ, and BODYSTRUCTURE into Threads, Messages, and Parts. The JMAP adapter calls the JMAP endpoints and converts the responses. The Gmail adapter uses the Gmail REST API for read paths and SMTP via Nodemailer for send. The Microsoft Graph adapter does the same with Graph endpoints.
+`fetchSince` is envelope-first and bounded by `limit`; bodies load on demand
+through `fetchBody`. The IMAP adapter (`imap.ts`) wraps ImapFlow with a
+CredentialResolver (password or XOAUTH2). The Gmail adapter (`gmail.ts`) uses
+the Gmail REST API, which works for Workspace accounts even when IMAP is
+disabled, and fetches envelopes via `format=metadata`. `send` is not yet
+implemented on either adapter (the outbox lands in a later phase).
 
 The internal model is not JMAP. JMAP is one of four implementations behind the same interface.
 

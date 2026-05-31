@@ -1,18 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { MessageClassification, Surface, TrustVerdict } from '@postern/core'
 
-export type SurfaceId = 'threads' | 'reader' | 'notifications' | 'ledger'
+// The canonical primitives live in @postern/core; the UI consumes them
+// rather than re-declaring literals that could drift.
+export type SurfaceId = Surface
+export type Trust = TrustVerdict
 
 export type SpaceGlyph = 'home' | 'ted' | 'builder'
-
-export type Trust = 'trusted' | 'caution' | 'failed' | 'unknown'
 
 export interface Card {
   subject: string
   fromName: string
   fromAddress: string
   date: string
-  category: string
+  category: MessageClassification
   trust: Trust
   messageCount: number
   messageIdHeader: string
@@ -149,8 +151,22 @@ const FALLBACK: Snapshot = {
   ],
 }
 
+const CLASSIFICATIONS: readonly MessageClassification[] = [
+  'personal',
+  'newsletter',
+  'notification',
+  'transactional',
+  'promotional',
+  'job',
+  'unclassified',
+]
+
 function toTrust(value: unknown): Trust {
   return TRUST_VALUES.find((t) => t === value) ?? 'unknown'
+}
+
+function toClassification(value: unknown): MessageClassification {
+  return CLASSIFICATIONS.find((c) => c === value) ?? 'unclassified'
 }
 
 function toGlyph(value: unknown): SpaceGlyph {
@@ -185,7 +201,7 @@ function toCard(value: unknown): Card | null {
     fromName,
     fromAddress,
     date,
-    category,
+    category: toClassification(category),
     trust: toTrust(raw['trust']),
     messageCount: typeof messageCount === 'number' ? messageCount : 1,
     messageIdHeader: typeof messageIdHeader === 'string' ? messageIdHeader : '',
