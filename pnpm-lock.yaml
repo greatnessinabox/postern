@@ -33,6 +33,37 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@25.9.1)(@vitest/ui@2.1.9)(jsdom@29.1.1)(lightningcss@1.32.0)
 
+  apps/daemon:
+    dependencies:
+      '@postern/ai':
+        specifier: workspace:^
+        version: link:../../packages/ai
+      '@postern/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@postern/protocol':
+        specifier: workspace:^
+        version: link:../../packages/protocol
+      '@postern/utils':
+        specifier: workspace:^
+        version: link:../../packages/utils
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+    devDependencies:
+      '@postern/tsconfig':
+        specifier: workspace:^
+        version: link:../../packages/tsconfig
+      '@types/jsdom':
+        specifier: ^28.0.3
+        version: 28.0.3
+      '@types/node':
+        specifier: 24.12.4
+        version: 24.12.4
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
+
   apps/desktop:
     devDependencies:
       '@postern/tsconfig':
@@ -3816,7 +3847,7 @@ snapshots:
 
   '@types/mailparser@3.4.6':
     dependencies:
-      '@types/node': 25.9.1
+      '@types/node': 24.12.4
       iconv-lite: 0.6.3
 
   '@types/node@24.12.4':
