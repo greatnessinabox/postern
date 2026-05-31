@@ -15,6 +15,9 @@ export interface Card {
   category: string
   trust: Trust
   messageCount: number
+  messageIdHeader: string
+  bodyHtml?: string
+  blockedImages?: number
 }
 
 export interface SurfaceData {
@@ -65,6 +68,7 @@ const FALLBACK: Snapshot = {
               category: 'personal',
               trust: 'trusted',
               messageCount: 1,
+              messageIdHeader: '',
             },
           ],
         },
@@ -79,6 +83,7 @@ const FALLBACK: Snapshot = {
               category: 'newsletter',
               trust: 'trusted',
               messageCount: 1,
+              messageIdHeader: '',
             },
           ],
         },
@@ -93,6 +98,7 @@ const FALLBACK: Snapshot = {
               category: 'notification',
               trust: 'trusted',
               messageCount: 1,
+              messageIdHeader: '',
             },
           ],
         },
@@ -107,6 +113,7 @@ const FALLBACK: Snapshot = {
               category: 'transactional',
               trust: 'trusted',
               messageCount: 1,
+              messageIdHeader: '',
             },
           ],
         },
@@ -130,6 +137,7 @@ const FALLBACK: Snapshot = {
               category: 'personal',
               trust: 'trusted',
               messageCount: 1,
+              messageIdHeader: '',
             },
           ],
         },
@@ -160,6 +168,9 @@ function toCard(value: unknown): Card | null {
   const date = raw['date']
   const category = raw['category']
   const messageCount = raw['messageCount']
+  const messageIdHeader = raw['messageIdHeader']
+  const bodyHtml = raw['bodyHtml']
+  const blockedImages = raw['blockedImages']
   if (
     typeof subject !== 'string' ||
     typeof fromName !== 'string' ||
@@ -169,7 +180,7 @@ function toCard(value: unknown): Card | null {
   ) {
     return null
   }
-  return {
+  const card: Card = {
     subject,
     fromName,
     fromAddress,
@@ -177,7 +188,15 @@ function toCard(value: unknown): Card | null {
     category,
     trust: toTrust(raw['trust']),
     messageCount: typeof messageCount === 'number' ? messageCount : 1,
+    messageIdHeader: typeof messageIdHeader === 'string' ? messageIdHeader : '',
   }
+  if (typeof bodyHtml === 'string') {
+    card.bodyHtml = bodyHtml
+  }
+  if (typeof blockedImages === 'number') {
+    card.blockedImages = blockedImages
+  }
+  return card
 }
 
 function toSurfaceData(value: unknown): SurfaceData {

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LedgerSurface } from './LedgerSurface'
+import { LetterView } from './LetterView'
 import { NotificationsSurface } from './NotificationsSurface'
 import { ReaderSurface } from './ReaderSurface'
 import { Sidebar } from './Sidebar'
-import type { Snapshot, Space, SurfaceId } from './snapshot'
+import type { Card, Snapshot, Space, SurfaceId } from './snapshot'
 import { SURFACES } from './surfaces'
 import { ThreadsSurface } from './ThreadsSurface'
 
@@ -31,11 +32,22 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
   const { spaces } = snapshot
   const [activeSpaceId, setActiveSpaceId] = useState<string>(() => firstSpaceId(spaces))
   const [activeSurface, setActiveSurface] = useState<SurfaceId>('threads')
+  const [readingCard, setReadingCard] = useState<Card | null>(null)
 
   const activeSpace = useMemo(
     () => spaces.find((space) => space.id === activeSpaceId) ?? spaces[0],
     [spaces, activeSpaceId],
   )
+
+  const selectSpace = useCallback((id: string) => {
+    setReadingCard(null)
+    setActiveSpaceId(id)
+  }, [])
+
+  const selectSurface = useCallback((id: SurfaceId) => {
+    setReadingCard(null)
+    setActiveSurface(id)
+  }, [])
 
   const handleKey = useCallback(
     (event: KeyboardEvent) => {
@@ -46,10 +58,10 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
       const target = spaces[index]
       if (target) {
         event.preventDefault()
-        setActiveSpaceId(target.id)
+        selectSpace(target.id)
       }
     },
-    [spaces],
+    [spaces, selectSpace],
   )
 
   useEffect(() => {
@@ -71,7 +83,7 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
       <Sidebar
         spaces={spaces}
         activeSpaceId={activeSpace.id}
-        onSelect={setActiveSpaceId}
+        onSelect={selectSpace}
         account={activeSpace.account}
       />
 
@@ -84,7 +96,7 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
               <button
                 key={meta.id}
                 type="button"
-                onClick={() => setActiveSurface(meta.id)}
+                onClick={() => selectSurface(meta.id)}
                 className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] transition-colors ${
                   isActive ? 'font-medium' : 'text-ink-faint hover:text-ink-soft'
                 }`}
@@ -102,28 +114,34 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
           })}
         </nav>
 
-        <div className="mb-6 flex items-baseline justify-between">
-          <div>
-            <h1 className="font-serif text-[28px] leading-none font-normal text-ink">
-              {header.title}
-            </h1>
-            <p className="mt-1.5 text-[12px] text-ink-faint">{header.blurb}</p>
-          </div>
-          <div className="text-[11px] text-ink-faint tabular-nums">{surface.total} total</div>
-        </div>
-
-        {isEmpty ? (
-          <p className="text-[13px] text-ink-faint">{EMPTY[activeSurface]}</p>
+        {readingCard ? (
+          <LetterView card={readingCard} accent={accent} onClose={() => setReadingCard(null)} />
         ) : (
           <>
-            {activeSurface === 'threads' ? (
-              <ThreadsSurface items={surface.items} accent={accent} />
-            ) : null}
-            {activeSurface === 'reader' ? <ReaderSurface items={surface.items} /> : null}
-            {activeSurface === 'notifications' ? (
-              <NotificationsSurface items={surface.items} />
-            ) : null}
-            {activeSurface === 'ledger' ? <LedgerSurface items={surface.items} /> : null}
+            <div className="mb-6 flex items-baseline justify-between">
+              <div>
+                <h1 className="font-serif text-[28px] leading-none font-normal text-ink">
+                  {header.title}
+                </h1>
+                <p className="mt-1.5 text-[12px] text-ink-faint">{header.blurb}</p>
+              </div>
+              <div className="text-[11px] text-ink-faint tabular-nums">{surface.total} total</div>
+            </div>
+
+            {isEmpty ? (
+              <p className="text-[13px] text-ink-faint">{EMPTY[activeSurface]}</p>
+            ) : (
+              <>
+                {activeSurface === 'threads' ? (
+                  <ThreadsSurface items={surface.items} accent={accent} onOpen={setReadingCard} />
+                ) : null}
+                {activeSurface === 'reader' ? <ReaderSurface items={surface.items} /> : null}
+                {activeSurface === 'notifications' ? (
+                  <NotificationsSurface items={surface.items} />
+                ) : null}
+                {activeSurface === 'ledger' ? <LedgerSurface items={surface.items} /> : null}
+              </>
+            )}
           </>
         )}
       </main>

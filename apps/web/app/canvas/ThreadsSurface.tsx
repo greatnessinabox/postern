@@ -2,9 +2,23 @@ import type { Card } from './snapshot'
 import { formatDate } from './surfaces'
 import { TrustGlyph } from './TrustGlyph'
 
-function ThreadCard({ card, yourTurn, accent }: { card: Card; yourTurn: boolean; accent: string }) {
+function ThreadCard({
+  card,
+  yourTurn,
+  accent,
+  onOpen,
+}: {
+  card: Card
+  yourTurn: boolean
+  accent: string
+  onOpen: (card: Card) => void
+}) {
   return (
-    <article className="tile shadow-tile relative flex min-h-[200px] flex-col rounded-md border border-ink/10 bg-parchment">
+    <button
+      type="button"
+      onClick={() => onOpen(card)}
+      className="tile shadow-tile relative flex min-h-[200px] cursor-pointer flex-col rounded-md border border-ink/10 bg-parchment text-left"
+    >
       <span
         aria-hidden="true"
         className="absolute top-3 bottom-3 left-0 w-[1px] rounded-r"
@@ -30,11 +44,19 @@ function ThreadCard({ card, yourTurn, accent }: { card: Card; yourTurn: boolean;
           {card.messageCount > 1 ? <span>{card.messageCount} messages</span> : null}
         </span>
       </div>
-    </article>
+    </button>
   )
 }
 
-export function ThreadsSurface({ items, accent }: { items: Card[]; accent: string }) {
+export function ThreadsSurface({
+  items,
+  accent,
+  onOpen,
+}: {
+  items: Card[]
+  accent: string
+  onOpen: (card: Card) => void
+}) {
   const ordered = [...items].sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
   const newestDate = ordered[0]?.date
 
@@ -47,6 +69,7 @@ export function ThreadsSurface({ items, accent }: { items: Card[]; accent: strin
             card={card}
             yourTurn={card.date === newestDate}
             accent={accent}
+            onOpen={onOpen}
           />
         ))}
       </div>
