@@ -94,10 +94,13 @@ const ALLOWED_ATTR = [
 // Blocks javascript:, data:, vbscript:, file:, and friends.
 const ALLOWED_URI_REGEXP = /^(?:https?|mailto|tel|cid):/i
 
-const REMOTE_URL = /^https?:/i
-const REMOTE_STYLE_URL = /url\(\s*['"]?\s*https?:[^)]*\)/gi
+// Remote includes protocol-relative (//host) as well as http(s).
+const REMOTE_URL = /^(?:https?:)?\/\//i
+// Catches remote refs inside url(...) and image-set(...), including
+// protocol-relative and quoted forms.
+const REMOTE_STYLE_URL = /(?:url|image-set)\(\s*['"]?\s*(?:https?:)?\/\/[^)]*\)/gi
 
-const REMOTE_ATTRS = ['src', 'background', 'poster'] as const
+const REMOTE_ATTRS = ['src', 'srcset', 'background', 'poster'] as const
 
 export function createEmailSanitizer(window: SanitizerWindow): EmailSanitizer {
   const purify = DOMPurify(window)

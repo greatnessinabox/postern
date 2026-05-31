@@ -87,4 +87,58 @@ describe('createEmailSanitizer', () => {
     const { html } = sanitizer.sanitize('<img src="cid:logo123">', block)
     expect(html).toContain('src="cid:logo123"')
   })
+
+  it('blocks protocol-relative image sources (DOMPurify scheme allowlist)', () => {
+    // Protocol-relative // is not an allowed scheme, so DOMPurify strips the
+    // src outright before the remote-blocking hook runs. The image cannot
+    // load either way; what matters is the URL is gone.
+    const result = sanitizer.sanitize('<img src="//tracker.test/pixel.gif">', block)
+    expect(result.html).not.toContain('tracker.test')
+  })
+
+  it('blocks protocol-relative url() in styles', () => {
+    const result = sanitizer.sanitize(
+      '<div style="background: url(//tracker.test/bg.png)">x</div>',
+      block,
+    )
+    expect(result.html).not.toContain('tracker.test/bg.png')
+    expect(result.blockedRemoteCount).toBe(1)
+  })
+
+  it('blocks image-set() remote urls in styles', () => {
+    const result = sanitizer.sanitize(
+      `<div style="background-image: image-set('https://tracker.test/x.png' 1x)">x</div>`,
+      block,
+    )
+    expect(result.html).not.toContain('tracker.test/x.png')
+    expect(result.blockedRemoteCount).toBe(1)
+  })
+
+  // Regression guards on the number-one attack surface. These are
+  // neutralized today; the tests stop a DOMPurify bump or allowlist tweak
+  // from silently reintroducing them.
+  it('strips style tags and their css payloads', () => {
+    const { html } = sanitizer.sanitize(
+      '<style>body { background: url(https://evil.test/x) }</style><p>hi</p>',
+      block,
+    )
+    expect(html).not.toContain('<style')
+    expect(html).not.toContain('evil.test')
+  })
+
+  it('strips svg with embedded scripts', () => {
+    const { html } = sanitizer.sanitize(
+      '<svg><script>alert(1)</script><a xlink:href="javascript:alert(1)">x</a></svg>',
+      allow,
+    )
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('javascript:')
+    expect(html).not.toContain('alert(1)')
+  })
+
+  it('strips control-character obfuscated javascript schemes', () => {
+    const { html } = sanitizer.sanitize('<a href="java\tscript:alert(1)">x</a>', allow)
+    expect(html).not.toContain('alert(1)')
+    expect(html.toLowerCase()).not.toContain('javascript')
+  })
 })

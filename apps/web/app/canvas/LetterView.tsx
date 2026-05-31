@@ -4,6 +4,17 @@ import { useEffect } from 'react'
 import type { Card } from './snapshot'
 import { formatDate, formatTime } from './surfaces'
 
+// Defense in depth on top of the sanitizer and the empty sandbox: a CSP
+// that forbids every remote fetch. Even if a remote URL survived
+// sanitizing, the document cannot load it. data: and cid: cover inline
+// images; styles stay inline.
+const CSP =
+  "default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"
+
+function framedDoc(bodyHtml: string): string {
+  return `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${CSP}"></head><body>${bodyHtml}</body></html>`
+}
+
 export function LetterView({
   card,
   accent,
@@ -58,7 +69,7 @@ export function LetterView({
         <iframe
           title={card.subject}
           sandbox=""
-          srcDoc={card.bodyHtml}
+          srcDoc={framedDoc(card.bodyHtml)}
           referrerPolicy="no-referrer"
           loading="lazy"
           className="w-full rounded-md border border-ink/10 bg-parchment"
