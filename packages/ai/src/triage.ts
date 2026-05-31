@@ -75,13 +75,41 @@ function isCategory(value: unknown): value is MessageClassification {
  * keeps only well-formed results. Missing or malformed entries are dropped
  * (the caller keeps the heuristic category for those).
  */
-export function parseTriageResponse(text: string): TriageResult[] {
+/**
+ * Extract the first balanced JSON array, tracking string state so brackets
+ * inside string values or trailing prose ("see item [2] above") do not throw
+ * the parse off. Returns undefined if no complete array is present.
+ */
+function extractJsonArray(text: string): string | undefined {
   const start = text.indexOf('[')
-  const end = text.lastIndexOf(']')
-  if (start < 0 || end <= start) return []
+  if (start < 0) return undefined
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === '[') depth += 1
+    else if (ch === ']') {
+      depth -= 1
+      if (depth === 0) return text.slice(start, i + 1)
+    }
+  }
+  return undefined
+}
+
+export function parseTriageResponse(text: string): TriageResult[] {
+  const json = extractJsonArray(text)
+  if (json === undefined) return []
   let parsed: unknown
   try {
-    parsed = JSON.parse(text.slice(start, end + 1))
+    parsed = JSON.parse(json)
   } catch {
     return []
   }

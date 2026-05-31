@@ -75,4 +75,18 @@ describe('parseTriageResponse', () => {
     expect(parseTriageResponse('{"not":"an array"}')).toEqual([])
     expect(parseTriageResponse('[broken')).toEqual([])
   })
+
+  it('ignores a stray closing bracket in trailing prose', () => {
+    const r = parseTriageResponse(
+      '[{"index":0,"category":"job","confidence":0.7,"reason":"alert"}]\n\nNote: see item [2] above.',
+    )
+    expect(r).toEqual([{ index: 0, category: 'job', confidence: 0.7, reason: 'alert' }])
+  })
+
+  it('handles a bracket inside a reason string', () => {
+    const r = parseTriageResponse(
+      '[{"index":0,"category":"personal","confidence":1,"reason":"a [b] c"}]',
+    )
+    expect(r[0]?.reason).toBe('a [b] c')
+  })
 })
