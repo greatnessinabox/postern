@@ -4,7 +4,8 @@
  *
  * Routes:
  *   GET  /health
- *   GET  /spaces            categorized snapshot (cached; ?refresh=1 rebuilds)
+ *   GET  /spaces            categorized snapshot, served from the local store
+ *                           (?refresh=1 syncs the provider first)
  *   GET  /body?account&messageId   sanitized message body
  *   POST /send              { account, to[], cc?, bcc?, subject, body, inReplyTo? }
  *
@@ -15,26 +16,28 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { Draft } from '@postern/protocol'
-import { buildSnapshot, fetchBody, type InboxSnapshot, send } from './inbox.ts'
+import { openStore } from './db.ts'
+import { fetchBody, type InboxSnapshot, send } from './inbox.ts'
+import { buildSnapshotFromStore } from './query.ts'
+import { syncAll } from './sync.ts'
 
 const TOKEN = process.env['POSTERN_DAEMON_TOKEN']
+const SYNC_INTERVAL_MS = Number(process.env['DAEMON_SYNC_INTERVAL_MS'] ?? String(5 * 60_000))
 
-let cached: InboxSnapshot | undefined
-let building: Promise<InboxSnapshot> | undefined
+function isEmpty(snap: InboxSnapshot): boolean {
+  return snap.spaces.every((s) => Object.values(s.surfaces).every((surface) => surface.total === 0))
+}
 
 async function getSnapshot(refresh: boolean): Promise<InboxSnapshot> {
-  if (!refresh && cached !== undefined) return cached
-  if (building === undefined) {
-    building = buildSnapshot()
-      .then((snap) => {
-        cached = snap
-        return snap
-      })
-      .finally(() => {
-        building = undefined
-      })
+  if (refresh) await syncAll()
+  let snap = await buildSnapshotFromStore()
+  // First run: the store is empty until the initial sync lands, so block this
+  // one request on it rather than return an empty inbox.
+  if (isEmpty(snap)) {
+    await syncAll()
+    snap = await buildSnapshotFromStore()
   }
-  return building
+  return snap
 }
 
 function authorized(req: IncomingMessage): boolean {
@@ -146,5 +149,15 @@ export function startServer(port: number, host = '127.0.0.1'): void {
   })
   server.listen(port, host, () => {
     console.log(`postern daemon listening on http://${host}:${port}`)
+    // Open the store and warm it in the background; serve from it meanwhile.
+    openStore()
+      .then(() => syncAll())
+      .catch(() => {})
+    if (SYNC_INTERVAL_MS > 0) {
+      const timer = setInterval(() => {
+        syncAll().catch(() => {})
+      }, SYNC_INTERVAL_MS)
+      timer.unref()
+    }
   })
 }

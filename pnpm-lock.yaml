@@ -35,6 +35,9 @@ importers:
 
   apps/daemon:
     dependencies:
+      '@libsql/client':
+        specifier: ^0.17.3
+        version: 0.17.3
       '@postern/ai':
         specifier: workspace:^
         version: link:../../packages/ai
@@ -44,9 +47,15 @@ importers:
       '@postern/protocol':
         specifier: workspace:^
         version: link:../../packages/protocol
+      '@postern/storage':
+        specifier: workspace:^
+        version: link:../../packages/storage
       '@postern/utils':
         specifier: workspace:^
         version: link:../../packages/utils
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@libsql/client@0.17.3)
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1

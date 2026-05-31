@@ -6,16 +6,19 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --packages=bundle --external:jsdom --outfile=dist/daemon.cjs",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --packages=bundle --external:jsdom --external:@libsql/client --outfile=dist/daemon.cjs && rm -rf dist/migrations && cp -R ../../packages/storage/drizzle dist/migrations",
     "start": "node dist/daemon.cjs",
     "dev": "pnpm run build && node dist/daemon.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.3",
     "@postern/ai": "workspace:^",
     "@postern/core": "workspace:^",
     "@postern/protocol": "workspace:^",
+    "@postern/storage": "workspace:^",
     "@postern/utils": "workspace:^",
+    "drizzle-orm": "^0.45.2",
     "jsdom": "^29.1.1"
   },
   "devDependencies": {
