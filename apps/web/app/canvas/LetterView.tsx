@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
-import type { Card } from './snapshot'
+import { useEffect, useState } from 'react'
+import { Composer, composerDraftFor } from './Composer'
+import { fetchBody } from './daemon'
+import type { Card } from './snapshot-data'
 import { formatDate, formatTime } from './surfaces'
 
 // Defense in depth on top of the sanitizer and the empty sandbox: a CSP
@@ -15,15 +17,29 @@ function framedDoc(bodyHtml: string): string {
   return `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${CSP}"></head><body>${bodyHtml}</body></html>`
 }
 
+type BodyState =
+  | { phase: 'ready'; html: string; blockedImages: number }
+  | { phase: 'loading' }
+  | { phase: 'empty' }
+
 export function LetterView({
   card,
+  account,
   accent,
   onClose,
 }: {
   card: Card
+  account: string
   accent: string
   onClose: () => void
 }) {
+  const [body, setBody] = useState<BodyState>(() =>
+    card.bodyHtml !== undefined
+      ? { phase: 'ready', html: card.bodyHtml, blockedImages: card.blockedImages ?? 0 }
+      : { phase: 'loading' },
+  )
+  const [composing, setComposing] = useState(false)
+
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -34,21 +50,57 @@ export function LetterView({
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  const blocked = card.blockedImages ?? 0
+  useEffect(() => {
+    if (card.bodyHtml !== undefined) {
+      setBody({ phase: 'ready', html: card.bodyHtml, blockedImages: card.blockedImages ?? 0 })
+      return
+    }
+    if (card.messageIdHeader.length === 0) {
+      setBody({ phase: 'empty' })
+      return
+    }
+    let active = true
+    setBody({ phase: 'loading' })
+    fetchBody(account, card.messageIdHeader).then((result) => {
+      if (!active) {
+        return
+      }
+      setBody(
+        result === null
+          ? { phase: 'empty' }
+          : { phase: 'ready', html: result.html, blockedImages: result.blockedImages },
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [account, card.bodyHtml, card.blockedImages, card.messageIdHeader])
+
+  const blocked = body.phase === 'ready' ? body.blockedImages : 0
 
   return (
     <div className="flex flex-col">
-      <button
-        type="button"
-        onClick={onClose}
-        className="space-item mb-5 inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1.5 text-[12.5px] text-ink-faint hover:text-ink-soft"
-        style={{ color: accent }}
-      >
-        <span aria-hidden="true" className="text-[14px] leading-none">
-          ‹
-        </span>
-        Back
-      </button>
+      <div className="mb-5 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClose}
+          className="space-item inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1.5 text-[12.5px] text-ink-faint hover:text-ink-soft"
+          style={{ color: accent }}
+        >
+          <span aria-hidden="true" className="text-[14px] leading-none">
+            ‹
+          </span>
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={() => setComposing(true)}
+          className="space-item rounded-md px-2 py-1.5 text-[12.5px] text-ink-faint hover:text-ink-soft"
+          style={{ color: accent }}
+        >
+          Reply
+        </button>
+      </div>
 
       <header className="mb-5 border-b border-ink/10 pb-5">
         <h1 className="font-serif text-[28px] leading-snug font-normal text-ink">{card.subject}</h1>
@@ -59,25 +111,40 @@ export function LetterView({
         </p>
       </header>
 
+      {composing ? (
+        <div className="mb-5">
+          <Composer
+            account={account}
+            accent={accent}
+            draft={composerDraftFor(card)}
+            onClose={() => setComposing(false)}
+          />
+        </div>
+      ) : null}
+
       {blocked > 0 ? (
         <p className="mb-3 text-[11.5px] text-ink-faint">
           {blocked} tracked {blocked === 1 ? 'image' : 'images'} blocked.
         </p>
       ) : null}
 
-      {card.bodyHtml ? (
+      {body.phase === 'ready' ? (
         <iframe
           title={card.subject}
           sandbox=""
-          srcDoc={framedDoc(card.bodyHtml)}
+          srcDoc={framedDoc(body.html)}
           referrerPolicy="no-referrer"
           loading="lazy"
           className="w-full rounded-md border border-ink/10 bg-parchment"
           style={{ height: '70vh', minHeight: 400 }}
         />
-      ) : (
+      ) : null}
+      {body.phase === 'loading' ? (
+        <p className="text-[13px] text-ink-faint">Loading the message.</p>
+      ) : null}
+      {body.phase === 'empty' ? (
         <p className="text-[13px] text-ink-faint">No preview available.</p>
-      )}
+      ) : null}
     </div>
   )
 }

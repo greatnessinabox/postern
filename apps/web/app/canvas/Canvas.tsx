@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Composer } from './Composer'
+import { fetchSpaces } from './daemon'
 import { LedgerSurface } from './LedgerSurface'
 import { LetterView } from './LetterView'
 import { NotificationsSurface } from './NotificationsSurface'
 import { ReaderSurface } from './ReaderSurface'
 import { Sidebar } from './Sidebar'
-import type { Card, Snapshot, Space, SurfaceId } from './snapshot'
+import type { Card, Snapshot, Space, SurfaceId } from './snapshot-data'
 import { SURFACES } from './surfaces'
 import { ThreadsSurface } from './ThreadsSurface'
 
@@ -29,10 +31,26 @@ function firstSpaceId(spaces: Space[]): string {
 }
 
 export function Canvas({ snapshot }: { snapshot: Snapshot }) {
-  const { spaces } = snapshot
-  const [activeSpaceId, setActiveSpaceId] = useState<string>(() => firstSpaceId(spaces))
+  const [data, setData] = useState<Snapshot>(snapshot)
+  const [live, setLive] = useState(false)
+  const { spaces } = data
+  const [activeSpaceId, setActiveSpaceId] = useState<string>(() => firstSpaceId(snapshot.spaces))
   const [activeSurface, setActiveSurface] = useState<SurfaceId>('threads')
   const [readingCard, setReadingCard] = useState<Card | null>(null)
+  const [composing, setComposing] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    fetchSpaces().then((result) => {
+      if (active && result !== null) {
+        setData(result)
+        setLive(true)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const activeSpace = useMemo(
     () => spaces.find((space) => space.id === activeSpaceId) ?? spaces[0],
@@ -41,11 +59,13 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
 
   const selectSpace = useCallback((id: string) => {
     setReadingCard(null)
+    setComposing(false)
     setActiveSpaceId(id)
   }, [])
 
   const selectSurface = useCallback((id: SurfaceId) => {
     setReadingCard(null)
+    setComposing(false)
     setActiveSurface(id)
   }, [])
 
@@ -112,10 +132,18 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
               </button>
             )
           })}
+          <span className="ml-auto text-[10.5px] text-ink-ghost tabular-nums">
+            {live ? 'live' : 'cached'}
+          </span>
         </nav>
 
         {readingCard ? (
-          <LetterView card={readingCard} accent={accent} onClose={() => setReadingCard(null)} />
+          <LetterView
+            card={readingCard}
+            account={activeSpace.account}
+            accent={accent}
+            onClose={() => setReadingCard(null)}
+          />
         ) : (
           <>
             <div className="mb-6 flex items-baseline justify-between">
@@ -125,8 +153,31 @@ export function Canvas({ snapshot }: { snapshot: Snapshot }) {
                 </h1>
                 <p className="mt-1.5 text-[12px] text-ink-faint">{header.blurb}</p>
               </div>
-              <div className="text-[11px] text-ink-faint tabular-nums">{surface.total} total</div>
+              <div className="flex items-center gap-4">
+                {activeSurface === 'threads' && !composing ? (
+                  <button
+                    type="button"
+                    onClick={() => setComposing(true)}
+                    className="space-item rounded-md px-2.5 py-1.5 text-[12px] font-medium"
+                    style={{ color: accent }}
+                  >
+                    New message
+                  </button>
+                ) : null}
+                <div className="text-[11px] text-ink-faint tabular-nums">{surface.total} total</div>
+              </div>
             </div>
+
+            {composing && activeSurface === 'threads' ? (
+              <div className="mb-6">
+                <Composer
+                  account={activeSpace.account}
+                  accent={accent}
+                  draft={{ to: '', subject: '' }}
+                  onClose={() => setComposing(false)}
+                />
+              </div>
+            ) : null}
 
             {isEmpty ? (
               <p className="text-[13px] text-ink-faint">{EMPTY[activeSurface]}</p>
