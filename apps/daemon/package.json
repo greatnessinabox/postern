@@ -24,7 +24,7 @@
   "devDependencies": {
     "@postern/tsconfig": "workspace:^",
     "@types/jsdom": "^28.0.3",
-    "@types/node": "24.12.4",
-    "esbuild": "^0.25.0"
+    "@types/node": "24.13.1",
+    "esbuild": "^0.28.0"
   }
 }
