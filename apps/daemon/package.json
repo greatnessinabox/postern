@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.3",
+    "@libsql/client": "^0.17.4",
     "@postern/ai": "workspace:^",
     "@postern/core": "workspace:^",
     "@postern/protocol": "workspace:^",
