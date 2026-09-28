@@ -18,7 +18,7 @@
     "@postern/protocol": "workspace:^",
     "@postern/storage": "workspace:^",
     "@postern/utils": "workspace:^",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "jsdom": "^29.1.1"
   },
   "devDependencies": {
