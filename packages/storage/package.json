@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "@postern/tsconfig": "workspace:^",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.11"
   },
   "dependencies": {
     "@libsql/client": "^0.17.3",
